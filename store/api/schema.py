@@ -8,6 +8,31 @@ from store.db.schema import CourierType
 import re
 
 
+def validate_hour_intervals_list(hour_intervals_list, value_title):
+    for i in range(len(hour_intervals_list)):
+        hour_interval = hour_intervals_list[i]
+        for time_mark in hour_interval.split("-"):
+            hours, minutes = time_mark.split(":")[0], time_mark.split(":")[0]
+            if hours > 23:
+                raise ValidationError(
+                    'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, hours)
+                )
+            if minutes > 59:
+                raise ValidationError(
+                    'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, minutes)
+                )
+
+
+def validate_hour_intervals_with_regular_expressions(hour_intervals_list, value_title):
+    pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
+    for i in range(len(hour_intervals_list)):
+        hour_interval = hour_intervals_list[i]
+        if not pattern.match(hour_interval):
+            raise ValidationError(
+                'incorrect format for {} on index {}.'.format(value_title, i)
+            )
+
+
 class CourierItemSchema(Schema):
     courier_id = Int(validate=Range(min=0), strict=True, required=True)
     courier_type = Str(validate=OneOf([courier_type.value for courier_type in CourierType]), required=True)
@@ -16,12 +41,8 @@ class CourierItemSchema(Schema):
 
     @validates('working_hours')
     def validate_working_hours(self, value):
-        pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
-        for working_hours in value:
-            if not pattern.match(working_hours):
-                raise ValidationError(
-                    'incorrect format for working hours {}'.format(working_hours)
-                )
+        validate_hour_intervals_with_regular_expressions(value, "working hours")
+        validate_hour_intervals_list(value, "working_hours")
 
 
 class CouriersPostRequestSchema(Schema):
@@ -60,29 +81,20 @@ class CourierUpdateRequest(Schema):
 
     @validates('working_hours')
     def validate_working_hours(self, value):
-        pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
-        for working_hours in value:
-            if not pattern.match(working_hours):
-                raise ValidationError(
-                    'incorrect format for working hours {}'.format(working_hours)
-                )
+        validate_hour_intervals_with_regular_expressions(value, "working hours")
+        validate_hour_intervals_list(value, "working hours")
 
 
 class OrderItemSchema(Schema):
     order_id = Int(validate=Range(min=0), strict=True, required=True)
     weight = Float(validate=Range(min=0), strict=True, required=True)
     region = Int(validate=Range(min=0), strict=True, required=True)
-
     delivery_hours = List(Str(), required=True)
 
-    @validates('working_hours')
+    @validates('delivery_hours')
     def validate_working_hours(self, value):
-        pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
-        for working_hours in value:
-            if not pattern.match(working_hours):
-                raise ValidationError(
-                    'incorrect format for working hours {}'.format(working_hours)
-                )
+        validate_hour_intervals_with_regular_expressions(value, "delivery hours")
+        validate_hour_intervals_list(value, "delivery hours")
 
 
 class OrdersPostRequest(Schema):
