@@ -32,7 +32,7 @@ postgres:
 	docker run --rm --detach --name=store-postgres \
 		--env POSTGRES_USER=user \
 		--env POSTGRES_PASSWORD=hackme \
-		--env POSTGRES_DB=analyzer \
+		--env POSTGRES_DB=store \
 		--publish 5432:5432 postgres
 
 test: lint postgres

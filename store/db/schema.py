@@ -67,7 +67,7 @@ couriers_regions_table = Table(
 working_hours_table = Table(
     'working_hours',
     metadata,
-    Column('working_hours_id', primary_key=True),
+    Column('working_hours_id', Integer, primary_key=True),
     Column('time_start', Integer, nullable=False),
     Column('time_finish', Integer, nullable=False)
 )
@@ -102,7 +102,7 @@ orders_table = Table(
 delivery_hours_table = Table(
     'delivery_hours',
     metadata,
-    Column('delivery_hours_id', primary_key=True),
+    Column('delivery_hours_id', Integer, primary_key=True),
     Column('time_start', Integer, nullable=False),
     Column('time_finish', Integer, nullable=False)
 )
