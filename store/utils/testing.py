@@ -8,16 +8,16 @@ from aiohttp.test_utils import TestClient
 from aiohttp.typedefs import StrOrURL
 from aiohttp.web_urldispatcher import DynamicResource
 
-from analyzer.api.handlers import (
+from store.api.handlers import (
     CitizenBirthdaysView, CitizensView, CitizenView, ImportsView,
     TownAgeStatView,
 )
-from analyzer.api.schema import (
+from store.api.schema import (
     BIRTH_DATE_FORMAT, CitizenPresentsResponseSchema, CitizensResponseSchema,
     ImportResponseSchema, PatchCitizenResponseSchema,
     TownAgeStatResponseSchema,
 )
-from analyzer.utils.pg import MAX_INTEGER
+from store.utils.pg import MAX_INTEGER
 
 
 fake = faker.Faker('ru_RU')
