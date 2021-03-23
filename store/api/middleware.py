@@ -28,16 +28,24 @@ def format_http_error(http_error_cls, message: Optional[str] = None,
 
     if fields:
         error['fields'] = fields
-
     return http_error_cls(body={'error': error})
+
+
+def format_validation_http_error(http_error_cls, fields: Optional[Mapping] = None) -> HTTPException:
+    """
+    Форматирует ошибку в виде HTTP исключения
+    """
+    if fields:
+        error = fields['data']
+
+    return http_error_cls(body=error)
 
 
 def handle_validation_error(error: ValidationError, *_):
     """
     Представляет ошибку валидации данных в виде HTTP ответа.
     """
-    raise format_http_error(HTTPBadRequest, 'Request validation has failed',
-                            error.messages)
+    raise format_validation_http_error(HTTPBadRequest, error.messages)
 
 
 @middleware

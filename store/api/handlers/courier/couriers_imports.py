@@ -2,13 +2,14 @@ from store.api.handlers.base import BaseView
 
 from http import HTTPStatus
 from typing import Generator
+from sqlalchemy import select
 
 from aiohttp.web_response import Response
 from aiohttp_apispec import docs, request_schema, response_schema
 from aiomisc import chunk_list
 
 from store.api.schema import CouriersPostRequestSchema, CouriersIdsSchema
-from store.db.schema import couriers_table, couriers_imports_table, working_hours_table, \
+from store.db.schema import couriers_table, working_hours_table, \
     couriers_working_hours_table, regions_table, couriers_regions_table
 from store.utils.pg import MAX_QUERY_ARGS
 
@@ -20,51 +21,97 @@ class CouriersImportsView(BaseView):
     # частями.
     # Максимальное кол-во строк для вставки можно рассчитать как отношение
     # MAX_QUERY_ARGS к кол-ву вставляемых в таблицу столбцов.
-    MAX_CITIZENS_PER_INSERT = MAX_QUERY_ARGS // len(couriers_table.columns)
+    MAX_COURIERS_PER_INSERT = MAX_QUERY_ARGS // len(couriers_table.columns)
 
     @classmethod
-    def make_couriers_table_rows(cls, couriers, import_id) -> Generator:
+    def make_couriers_table_rows(cls, couriers) -> Generator:
         """
-        Генерирует данные готовые для вставки в таблицу citizens (с ключом
-        import_id и без ключа relatives).
+        Generates data for 'couriers' table insertion
         """
         for courier in couriers:
             yield {
-                'import_id': import_id,
                 'courier_id': courier['courier_id'],
-                'type': courier['type']
+                'type': courier['courier_type']
             }
 
     @classmethod
-    def make_regions_table_rows(cls, couriers, import_id) -> Generator:
+    def make_regions_table_rows(cls, couriers, regions) -> Generator:
         """
         Generates data for 'regions' table insertion
         """
+        current_regions_set, new_regions_set = set(), set()
+        for i in regions:
+            current_regions_set.add(i['region_id'])
+
         for courier in couriers:
-            for regions in courier['regions']:
+            for region in courier['regions']:
+                new_regions_set.add(region)
+
+        adding_regions_set = new_regions_set - current_regions_set
+        for region in adding_regions_set:
+            yield {
+                'region_id': region
+            }
+
+    @classmethod
+    def make_couriers_regions_table_rows(cls, couriers) -> Generator:
+        """
+        Generates data for 'couriers_regions' table insertion
+        """
+        for courier in couriers:
+            for region in courier['regions']:
                 yield {
-                    region_id :
+                    'courier_id': courier['courier_id'],
+                    'region_id': region
                 }
 
+    @classmethod
+    def make_couriers_ids(cls, couriers) -> Generator:
+        for courier in couriers:
+            yield {
+                'id': courier['courier_id']
+            }
+
+    @classmethod
+    def make_working_hours_table_rows(cls, couriers) -> Generator:
+        for courier in couriers:
+            for working_hour_interval in courier['working_hours']:
+                start_working, stop_working = working_hour_interval.split('-')[0], working_hour_interval.split('-')[1]
+
+                yield {
+                    'time_start': str(int(start_working.split(":")[0]) * 60 + int(start_working.split(":")[1])),
+                    'time_finish': str(int(stop_working.split(":")[0]) * 60 + int(stop_working.split(":")[1]))
+                }
+
+    @classmethod
+    def make_couriers_working_hours_table_rows(cls, couriers, working_hours_ids) -> Generator:
+        id_counter = 0
+        for courier in couriers:
+            for i in range(len(courier['working_hours'])):
+                yield {
+                    'courier_id': courier['courier_id'],
+                    'working_hours_id': working_hours_ids[id_counter]
+                }
+                id_counter += 1
 
     @docs(summary='Add import with couriers information')
-    @request_schema(ImportSchema())
-    @response_schema(ImportResponseSchema(), code=HTTPStatus.CREATED.value)
+    @request_schema(CouriersPostRequestSchema())
+    @response_schema(CouriersIdsSchema(), code=HTTPStatus.CREATED.value)
     async def post(self):
         # Транзакция требуется чтобы в случае ошибки (или отключения клиента,
         # не дождавшегося ответа) откатить частично добавленные изменения.
         async with self.pg.transaction() as conn:
-            # Создаем выгрузку
-            query = couriers_imports_table.insert().returning(couriers_imports_table.c.import_id)
-            import_id = await conn.fetchval(query)
-            query = regions_table.insert().returning(regions_table.c.region_id)
-            region_id = await conn.fetchval(query)
-            # Генераторы make_citizens_table_rows и make_relations_table_rows
-            # лениво генерируют данные, готовые для вставки в таблицы citizens
-            # и relations на основе данных отправленных клиентом.
-            citizens = self.request['data']['citizens']
-            citizen_rows = self.make_citizens_table_rows(citizens, import_id)
-            relation_rows = self.make_relations_table_rows(citizens, import_id)
+
+            query = select([regions_table.c.region_id]).select_from(regions_table)
+            regions = await self.pg.fetch(query)
+
+            couriers = self.request['data']['data']
+            couriers_rows = self.make_couriers_table_rows(couriers)
+            couriers_ids = self.make_couriers_ids(couriers)
+            regions_rows = self.make_regions_table_rows(couriers, regions)
+            couriers_regions_rows = self.make_couriers_regions_table_rows(couriers)
+
+            working_hours_rows = self.make_working_hours_table_rows(couriers)
 
             # Чтобы уложиться в ограничение кол-ва аргументов в запросе к
             # postgres, а также сэкономить память и избежать создания полной
@@ -72,19 +119,38 @@ class CouriersImportsView(BaseView):
             # генератор chunk_list.
             # Он будет получать из генератора make_citizens_table_rows только
             # необходимый для 1 запроса объем данных.
-            chunked_citizen_rows = chunk_list(citizen_rows,
-                                              self.MAX_CITIZENS_PER_INSERT)
-            chunked_relation_rows = chunk_list(relation_rows,
-                                               self.MAX_RELATIONS_PER_INSERT)
+            chunked_couriers_rows = chunk_list(couriers_rows, self.MAX_COURIERS_PER_INSERT)
+            chunked_regions_rows = chunk_list(regions_rows, 1)
+            chunked_couriers_regions_rows = chunk_list(couriers_regions_rows, self.MAX_COURIERS_PER_INSERT)
+            chunked_working_hours_rows = chunk_list(working_hours_rows, self.MAX_COURIERS_PER_INSERT)
 
-            query = citizens_table.insert()
-            for chunk in chunked_citizen_rows:
+            query = couriers_table.insert()
+            for chunk in chunked_couriers_rows:
                 await conn.execute(query.values(list(chunk)))
 
-            query = relations_table.insert()
-            for chunk in chunked_relation_rows:
+            query = regions_table.insert()
+            for chunk in chunked_regions_rows:
                 await conn.execute(query.values(list(chunk)))
 
-        return Response(body={'data': {'import_id': import_id}},
+            query = couriers_regions_table.insert()
+            for chunk in chunked_couriers_regions_rows:
+                await conn.execute(query.values(list(chunk)))
+
+            ids = []
+            query = working_hours_table.insert().returning(working_hours_table.c.working_hours_id)
+            for chunk in chunked_working_hours_rows:
+                first_id = await conn.fetchval(query.values(
+                    [{'time_start': int(i['time_start']), 'time_finish': int(i['time_finish'])} for i in list(chunk)]))
+                ids.append([first_id + i for i in range(len(list(chunk)))])
+            ids = [y for x in ids for y in x]
+
+            couriers_working_hours_table_rows = self.make_couriers_working_hours_table_rows(couriers, ids)
+            chunked_couriers_working_hours_table_rows = chunk_list(couriers_working_hours_table_rows,
+                                                                   self.MAX_COURIERS_PER_INSERT)
+
+            query = couriers_working_hours_table.insert()
+            for chunk in chunked_couriers_working_hours_table_rows:
+                await conn.execute(query.values(list(chunk)))
+
+        return Response(body={'couriers': list(chunk_list(couriers_ids, self.MAX_COURIERS_PER_INSERT))},
                         status=HTTPStatus.CREATED)
-

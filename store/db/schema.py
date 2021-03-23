@@ -29,18 +29,10 @@ class CourierType(Enum):
     car = 'car'
 
 
-couriers_imports_table = Table(
-    'couriers_imports',
-    metadata,
-    Column('import_id', Integer, primary_key=True)
-)
-
 couriers_table = Table(
     'couriers',
     metadata,
     Column('courier_id', Integer, primary_key=True),
-    Column('import_id', Integer,
-           ForeignKey('couriers_imports.import_id'), primary_key=True),
     Column('type', PgEnum(CourierType, name='type'), nullable=False)
 )
 
@@ -48,20 +40,14 @@ regions_table = Table(
     'regions',
     metadata,
     Column('region_id', Integer, primary_key=True),
-    Column('region_numeric_value', Integer, nullable=False)
 )
 
 couriers_regions_table = Table(
     'couriers_regions',
     metadata,
-    Column('import_id', Integer, primary_key=True),
     Column('courier_id', Integer, primary_key=True),
     Column('region_id', Integer,
            ForeignKey('regions.region_id'), primary_key=True),
-    ForeignKeyConstraint(
-        ('import_id', 'courier_id'),
-        ('couriers.import_id', 'couriers.courier_id')
-    )
 )
 
 working_hours_table = Table(
@@ -75,24 +61,15 @@ working_hours_table = Table(
 couriers_working_hours_table = Table(
     'couriers_working_hours',
     metadata,
-    Column('import_id', Integer, primary_key=True),
     Column('courier_id', Integer, primary_key=True),
     Column('working_hours_id', Integer,
            ForeignKey('working_hours.working_hours_id'), primary_key=True)
-)
-
-orders_imports_table = Table(
-    'orders_imports',
-    metadata,
-    Column('import_id', Integer, primary_key=True)
 )
 
 orders_table = Table(
     'orders',
     metadata,
     Column('order_id', Integer, primary_key=True),
-    Column('import_id', Integer,
-           ForeignKey('orders_imports.import_id'), primary_key=True),
     Column('weight', Float, nullable=False),
     Column('region', Integer, nullable=False),
     Column('assignment_time', DateTime, default=None),
@@ -110,8 +87,7 @@ delivery_hours_table = Table(
 orders_delivery_hours_table = Table(
     'orders_delivery_hours',
     metadata,
-    Column('import_id', Integer, primary_key=True),
-    Column('courier_id', Integer, primary_key=True),
+    Column('order_id', Integer, primary_key=True),
     Column('delivery_hours_id', Integer,
            ForeignKey('delivery_hours.delivery_hours_id'), primary_key=True)
 )

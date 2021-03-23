@@ -8,11 +8,31 @@ from store.db.schema import CourierType
 import re
 
 
+class CouriersNested(Nested):
+    def _deserialize(self, *args, **kwargs):
+        try:
+            return super()._deserialize(*args, **kwargs)
+        except ValidationError as err:
+            # if err.messages.update():
+            print(err.messages)
+            err.messages = {'validation_error': {'couriers': [{'id': i} for i in err.messages]}}
+            raise err
+
+
+class OrdersNested(Nested):
+    def _deserialize(self, *args, **kwargs):
+        try:
+            return super()._deserialize(*args, **kwargs)
+        except ValidationError as err:
+            err.messages = {'validation_error': {'orders': [{'id': i} for i in err.messages]}}
+            raise err
+
+
 def validate_hour_intervals_list(hour_intervals_list, value_title):
     for i in range(len(hour_intervals_list)):
         hour_interval = hour_intervals_list[i]
         for time_mark in hour_interval.split("-"):
-            hours, minutes = time_mark.split(":")[0], time_mark.split(":")[0]
+            hours, minutes = int(time_mark.split(":")[0]), int(time_mark.split(":")[0])
             if hours > 23:
                 raise ValidationError(
                     'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, hours)
@@ -46,18 +66,22 @@ class CourierItemSchema(Schema):
 
 
 class CouriersPostRequestSchema(Schema):
-    data = Nested(CourierItemSchema, many=True, required=True,
-                  validate=Length(max=10000))  # rewrite according to courier schema
+    data = CouriersNested(CourierItemSchema, many=True, required=True,
+                          validate=Length(max=10000))  # rewrite according to courier schema
 
     @validates_schema
     def validate_unique_courier_id(self, data, **_):
-        courier_ids = set()
-        for courier in data['courier_id']:
-            if courier['courier_id'] in courier_ids:
-                raise ValidationError(
-                    'courier_id %r is not unique' % courier['courier_id']
-                )
-            courier_ids.add(courier['citizen_id'])
+        courier_ids_set = set()
+        couriers_ids_list = list()
+        for courier in data['data']:
+            courier_ids_set.add(courier['courier_id'])
+            couriers_ids_list.append(courier['courier_id'])
+        if len(couriers_ids_list) != len(courier_ids_set):
+            raise ValidationError(
+                {'data': {'validation_error': [
+                    {'id': i
+                     } for i in [item for item in courier_ids_set if couriers_ids_list.count(item) > 1]
+                ]}})
 
 
 class SingleIdSchema(Schema):
@@ -98,7 +122,7 @@ class OrderItemSchema(Schema):
 
 
 class OrdersPostRequest(Schema):
-    data = Nested(OrderItemSchema, many=True, required=True,
+    data = OrdersNested(OrderItemSchema, many=True, required=True,
                   validate=Length(max=10000))  # rewrite according to courier schema
 
 
