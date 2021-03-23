@@ -13,3 +13,4 @@ marshmallow~=3.10.0
 yarl~=1.5.1
 Faker~=4.0.0
 setuptools~=54.1.2
+asyncpg~=0.22.0

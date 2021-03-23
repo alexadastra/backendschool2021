@@ -13,8 +13,6 @@ class CouriersNested(Nested):
         try:
             return super()._deserialize(*args, **kwargs)
         except ValidationError as err:
-            # if err.messages.update():
-            print(err.messages)
             err.messages = {'validation_error': {'couriers': [{'id': i} for i in err.messages]}}
             raise err
 
