@@ -35,10 +35,11 @@ def format_validation_http_error(http_error_cls, fields: Optional[Mapping] = Non
     """
     Форматирует ошибку в виде HTTP исключения
     """
-    if fields:
+    if 'data' in fields:
         error = fields['data']
+        return http_error_cls(body=error)
 
-    return http_error_cls(body=error)
+    return http_error_cls
 
 
 def handle_validation_error(error: ValidationError, *_):

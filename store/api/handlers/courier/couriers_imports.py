@@ -39,16 +39,15 @@ class CouriersImportsView(BaseView):
         """
         Generates data for 'regions' table insertion
         """
-        current_regions_set, new_regions_set = set(), set()
+        current_regions, new_regions = set(), set()
         for i in regions:
-            current_regions_set.add(i['region_id'])
+            current_regions.add(i['region_id'])
 
         for courier in couriers:
             for region in courier['regions']:
-                new_regions_set.add(region)
+                new_regions.add(region)
 
-        adding_regions_set = new_regions_set - current_regions_set
-        for region in adding_regions_set:
+        for region in new_regions - current_regions:
             yield {
                 'region_id': region
             }

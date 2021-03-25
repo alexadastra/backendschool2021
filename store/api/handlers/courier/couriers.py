@@ -10,7 +10,8 @@ from marshmallow import ValidationError
 from sqlalchemy import and_, or_
 
 from store.api.schema import CourierUpdateRequest, CourierItemSchema
-from store.db.schema import couriers_table, couriers_regions_table, couriers_working_hours_table, working_hours_table
+from store.db.schema import couriers_table, couriers_regions_table, couriers_working_hours_table, working_hours_table, \
+    regions_table
 
 from ..query import COURIERS_QUERY
 from ...domain import TimeIntervalsConverter
@@ -33,7 +34,8 @@ class CourierView(BaseView):
             couriers_table.c.courier_id == courier_id,
         ))
         courier = await conn.fetchrow(query)
-        print(courier['time_start'])
+        if courier is None:
+            raise HTTPNotFound()
         return {
             'courier_id': courier['courier_id'],
             'type': courier['type'],
@@ -41,59 +43,81 @@ class CourierView(BaseView):
             'working_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=courier['time_start'],
                                                                         time_finish_intervals=courier['time_finish'])
         }
-    """
+
     @staticmethod
-    async def add_relatives(conn, import_id, citizen_id, relative_ids):
-        if not relative_ids:
+    async def add_regions(conn, courier_id, region_ids):
+        if not region_ids:
             return
 
-        values = []
-        base = {'import_id': import_id}
-        for relative_id in relative_ids:
-            values.append({**base, 'citizen_id': citizen_id,
-                           'relative_id': relative_id})
+        query = regions_table.select()
+        regions = await conn.fetch(query)
+        regions = {i['region_id'] for i in regions}
+        regions = region_ids - regions
+        values = [{'region_id': i} for i in regions]
+        query = regions_table.insert().values(values)
+        await conn.execute(query)
 
-            # Обратная связь не нужна, если житель сам себе родственник
-            if citizen_id != relative_id:
-                values.append({**base, 'citizen_id': relative_id,
-                               'relative_id': citizen_id})
-        query = relations_table.insert().values(values)
-
-        try:
-            await conn.execute(query)
-        except ForeignKeyViolationError:
-            raise ValidationError({'relatives': (
-                f'Unable to add relatives {relative_ids}, some do not exist'
-            )})
+        values = [{'courier_id': courier_id, 'region_id': region_id} for region_id in region_ids]
+        query = couriers_regions_table.insert().values(values)
+        await conn.execute(query)
 
     @staticmethod
-    async def remove_relatives(conn, import_id, citizen_id, relative_ids):
-        if not relative_ids:
+    async def remove_regions(conn, courier_id, region_ids):
+        if not region_ids:
             return
 
         conditions = []
-        for relative_id in relative_ids:
-            conditions.extend([
-                and_(relations_table.c.import_id == import_id,
-                     relations_table.c.citizen_id == citizen_id,
-                     relations_table.c.relative_id == relative_id),
-                and_(relations_table.c.import_id == import_id,
-                     relations_table.c.citizen_id == relative_id,
-                     relations_table.c.relative_id == citizen_id)
-            ])
-        query = relations_table.delete().where(or_(*conditions))
+        for region_id in region_ids:
+            conditions.extend(
+                and_(couriers_regions_table.c.region_id == region_id,
+                     couriers_regions_table.c.courier_id == courier_id
+                     ),
+            )
+        query = couriers_regions_table.delete().where(or_(*conditions))
+        await conn.execute(query)
+
+    @staticmethod
+    async def add_working_hours(conn, courier_id, working_hours):
+        if not working_hours:
+            return
+        time_start, time_finish = TimeIntervalsConverter.string_to_int_array(working_hours)
+        values = [{'time_start': time_start[i], 'time_finish': time_finish[i]} for i in range(len(time_start))]
+        query = working_hours_table.insert().values(values).returning(working_hours_table.c.working_hours_id)
+        first_id = await conn.fetchval(query)
+
+        values = [{'courier_id': courier_id, 'working_hours_id': first_id + i} for i in range(len(time_start))]
+        query = couriers_working_hours_table.insert().values(values)
+        await conn.execute(query)
+
+    @staticmethod
+    async def remove_working_hours(conn, courier_id, working_hours_ids):
+        if not working_hours_ids:
+            return
+        conditions = []
+        for working_hours_id in working_hours_ids:
+            conditions.extend(
+                and_(couriers_working_hours_table.c.working_hours_id == working_hours_id,
+                     couriers_working_hours_table.c.courier_id == courier_id),
+            )
+        query = couriers_working_hours_table.delete().where(or_(*conditions))
+        await conn.execute(query)
+
+        conditions = []
+        for working_hours_id in working_hours_ids:
+            conditions.extend(and_(working_hours_table.c.working_hours_id == working_hours_id,
+                                   working_hours_table.c.working_hours_id == working_hours_id))
+        query = working_hours_table.delete().where(or_(*conditions))
         await conn.execute(query)
 
     @classmethod
-    async def update_citizen(cls, conn, import_id, citizen_id, data):
-        values = {k: v for k, v in data.items() if k != 'relatives'}
+    async def update_courier(cls, conn, courier_id, data):
+        values = {k: v for k, v in data.items() if k not in ['regions', 'working_hours']}
         if values:
-            query = citizens_table.update().values(values).where(and_(
-                citizens_table.c.import_id == import_id,
-                citizens_table.c.citizen_id == citizen_id
-            ))
+            query = couriers_table.update().values(values).where(
+                couriers_table.c.courier_id == courier_id
+            )
             await conn.execute(query)
-    """
+
     @docs(summary='Обновить указанного жителя в определенной выгрузке')
     @request_schema(CourierUpdateRequest())
     @response_schema(CourierItemSchema(), code=HTTPStatus.OK.value)
@@ -108,25 +132,33 @@ class CourierView(BaseView):
             await self.acquire_lock(conn, self.courier_id)
             # Получаем информацию о жителе
             courier = await self.get_courier(conn, self.courier_id)
-            if not courier:
-                raise HTTPNotFound()
-            """
-            # Обновляем таблицу citizens
-            await self.update_citizen(conn, self.import_id, self.citizen_id,
-                                      self.request['data'])
+            # Обновляем таблицу couriers
+            if 'type' in self.request['data']:
+                await self.update_courier(conn, self.courier_id, self.request['data'])
 
-            if 'relatives' in self.request['data']:
-                cur_relatives = set(citizen['relatives'])
-                new_relatives = set(self.request['data']['relatives'])
-                await self.remove_relatives(
-                    conn, self.import_id, self.citizen_id,
-                    cur_relatives - new_relatives
+            if 'regions' in self.request['data']:
+                cur_regions = set(courier['regions'])
+                new_regions = set(self.request['data']['regions'])
+
+                await self.remove_regions(
+                    conn, self.courier_id,
+                    cur_regions - new_regions
                 )
-                await self.add_relatives(
-                    conn, self.import_id, self.citizen_id,
-                    new_relatives - cur_relatives
+
+                await self.add_regions(
+                    conn, self.courier_id,
+                    new_regions - cur_regions
                 )
-            """
-            # Получаем актуальную информацию о
+
+            if 'working_hours' in self.request['data']:
+                query = couriers_working_hours_table \
+                    .select() \
+                    .where(couriers_working_hours_table.c.courier_id == self.courier_id)
+                cur_hours_ids = [i['working_hours_id'] for i in await conn.fetch(query)]
+                new_hours = set(self.request['data']['working_hours'])
+                cur_hours_ids = set(cur_hours_ids)
+                await self.remove_working_hours(conn, self.courier_id, cur_hours_ids)
+                await self.add_working_hours(conn, self.courier_id, new_hours)
+
             courier = await self.get_courier(conn, self.courier_id)
-        return Response(body={'data': courier})
+        return Response(body=courier)

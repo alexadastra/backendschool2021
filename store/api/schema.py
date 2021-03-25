@@ -39,6 +39,7 @@ def validate_hour_intervals_list(hour_intervals_list, value_title):
                 raise ValidationError(
                     'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, minutes)
                 )
+    # should we check "23:00"-"2:00" or "23:00"-"0:00"
 
 
 def validate_hour_intervals_with_regular_expressions(hour_intervals_list, value_title):
@@ -97,7 +98,7 @@ class CourierGetResponseSchema(CourierItemSchema):
 
 
 class CourierUpdateRequest(Schema):
-    courier_type = Str(validate=OneOf([courier_type.value for courier_type in CourierType]))
+    type = Str(validate=OneOf([courier_type.value for courier_type in CourierType]))
     regions = List(Int(validate=Range(min=0)), strict=True)
     working_hours = List(Str())
 
@@ -109,7 +110,7 @@ class CourierUpdateRequest(Schema):
 
 class OrderItemSchema(Schema):
     order_id = Int(validate=Range(min=0), strict=True, required=True)
-    weight = Float(validate=Range(min=0), strict=True, required=True)
+    weight = Float(validate=Range(min=0.01, max=50), strict=True, required=True)
     region = Int(validate=Range(min=0), strict=True, required=True)
     delivery_hours = List(Str(), required=True)
 
