@@ -70,6 +70,7 @@ orders_table = Table(
     'orders',
     metadata,
     Column('order_id', Integer, primary_key=True),
+    Column('courier_id', Integer, ForeignKey('couriers.courier_id'), default=None),
     Column('weight', Float, nullable=False),
     Column('region', Integer, nullable=False),
     Column('assignment_time', DateTime, default=None),

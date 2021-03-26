@@ -133,7 +133,7 @@ class OrderItemSchema(Schema):
 
 class OrdersPostRequest(Schema):
     data = OrdersNested(OrderItemSchema, many=True, required=True,
-                  validate=Length(max=10000))  # rewrite according to courier schema
+                        validate=Length(max=10000))  # rewrite according to courier schema
 
 
 class OrdersIds(Schema):
@@ -141,7 +141,9 @@ class OrdersIds(Schema):
                    validate=Length(max=10000))  # rewrite according to response schema
 
 
-class AssignTime(Schema):
+class OrdersAssignPostResponse(Schema):
+    orders = Nested(SingleIdSchema, many=True, required=True,
+                    validate=Length(max=10000))  # rewrite according to response schema
     assign_time = Str()
 
 
