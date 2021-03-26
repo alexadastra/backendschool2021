@@ -37,18 +37,3 @@ COURIERS_QUERY = select(
 ).group_by(
     couriers_table.c.courier_id
 )
-
-"""
-    join(
-        couriers_table.outerjoin(
-            couriers_regions_table, couriers_table.c.courier_id == couriers_regions_table.c.courier_id
-        ).join(
-            regions_table, couriers_regions_table.c.region_id == regions_table.c.region_id
-        ),
-        couriers_table.outerjoin(
-            couriers_working_hours_table, couriers_table.c.courier_id == couriers_working_hours_table.c.courier_id
-        ).join(
-            working_hours_table, couriers_working_hours_table.c.working_hours_id == working_hours_table.c.working_hours_id
-        )
-    )
-    """

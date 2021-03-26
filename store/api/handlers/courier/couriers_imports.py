@@ -5,6 +5,7 @@ from typing import Generator
 from sqlalchemy import select
 
 from aiohttp.web_response import Response
+from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp_apispec import docs, request_schema, response_schema
 from aiomisc import chunk_list
 
@@ -12,6 +13,7 @@ from store.api.schema import CouriersPostRequestSchema, CouriersIdsSchema
 from store.db.schema import couriers_table, working_hours_table, \
     couriers_working_hours_table, regions_table, couriers_regions_table
 from store.utils.pg import MAX_QUERY_ARGS
+from asyncpg.exceptions import UniqueViolationError
 
 
 class CouriersImportsView(BaseView):
@@ -125,7 +127,11 @@ class CouriersImportsView(BaseView):
 
             query = couriers_table.insert()
             for chunk in chunked_couriers_rows:
-                await conn.execute(query.values(list(chunk)))
+                try:
+                    await conn.execute(query.values(list(chunk)))
+                # if couriers already exist, throw 400 bad request
+                except UniqueViolationError:
+                    raise HTTPBadRequest()
 
             query = regions_table.insert()
             for chunk in chunked_regions_rows:

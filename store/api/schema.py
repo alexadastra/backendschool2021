@@ -43,6 +43,11 @@ def validate_hour_intervals_list(hour_intervals_list, value_title):
     for i in range(len(hour_intervals_list)):
         hour_interval = hour_intervals_list[i]
         time_start, time_finish = hour_interval.split("-")
+        # check if time interval isn't empty
+        if time_start == time_finish:
+            raise ValidationError(
+                'time interval {} is empty'.format(hour_interval)
+            )
         # check if time mark is correct (hours are in [0..23], minutes are in [0..59])
         hours_start, minutes_start = validate_time_mark(time_start, value_title, i)
         hours_finish, minutes_finish = validate_time_mark(time_finish, value_title, i)
