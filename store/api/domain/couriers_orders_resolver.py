@@ -1,7 +1,10 @@
+import asyncio
+
+
 class CouriersOrdersResolver:
     def __init__(self, orders_, max_weight, values_=None):
         self.orders = {}
-        i = 0
+        i = 1
         for k, v in orders_.items():
             # as weight is a float number, convert to int by multiplying by 100 and rounding
             # (minimal value is 0.01, so it'll be converted to 1)
@@ -13,34 +16,35 @@ class CouriersOrdersResolver:
         self.k = [[0 for x in range(self.w + 1)] for x in range(self.n + 1)]
         self.ans = []
 
-    def resolve_orders(self):
-        self.solve_knapsack_problem()
-        self.find_ans(self.n, self.w)
-        ids = []
+    async def resolve_orders(self):
+        await self.solve_knapsack_problem()
+        await self.find_ans(self.n, self.w)
+        ids_ = []
         for item in self.ans:
-            ids.append(self.orders[item]['id'])
-        return ids
+            ids_.append(self.orders[item]['id'])
+        ids_.sort()
+        return ids_
 
-    def solve_knapsack_problem(self):
+    async def solve_knapsack_problem(self):
         # Build table k[][] in bottom up manner
         for i in range(self.n + 1):
             for w in range(self.w + 1):
                 if i == 0 or w == 0:
                     self.k[i][w] = 0
-                elif self.orders[i - 1]['weight'] <= w:
+                elif self.orders[i]['weight'] <= w:
                     self.k[i][w] = \
-                        max(self.val[i - 1] + self.k[i - 1][w - self.orders[i - 1]['weight']], self.k[i - 1][w])
+                        max(self.val[i - 1] + self.k[i - 1][w - self.orders[i]['weight']], self.k[i - 1][w])
                 else:
                     self.k[i][w] = self.k[i - 1][w]
         return self.k[self.n][self.w]
 
-    def find_ans(self, k, s):
+    async def find_ans(self, k, s):
         if self.k[k][s] == 0:
             return
         if self.k[k - 1][s] == self.k[k][s]:
-            self.find_ans(k - 1, s)
+            await self.find_ans(k - 1, s)
         else:
-            self.find_ans(k - 1, s - self.orders[k - 1]['weight'])
+            await self.find_ans(k - 1, s - self.orders[k]['weight'])
             self.ans.append(k)
 
 
@@ -50,4 +54,7 @@ if __name__ == "__main__":
     values = [1, 6, 4, 7, 6]
     max_w = 13.5
     resolver = CouriersOrdersResolver(orders_=orders, values_=values, max_weight=max_w)
-    print(resolver.resolve_orders())
+    loop = asyncio.get_event_loop()
+    ids = loop.run_until_complete(resolver.resolve_orders())
+    loop.close()
+    print(ids)
