@@ -11,9 +11,9 @@ from sqlalchemy import and_, or_
 
 from store.api.schema import CourierUpdateRequest, CourierItemSchema
 from store.db.schema import couriers_table, couriers_regions_table, couriers_working_hours_table, working_hours_table, \
-    regions_table
+    regions_table, orders_table
 
-from ..query import COURIERS_QUERY
+from ..query import COURIERS_QUERY, AvailableOrdersDefiner
 from ...domain import TimeIntervalsConverter
 
 
@@ -45,6 +45,12 @@ class CourierView(BaseView):
         }
 
     @staticmethod
+    async def get_orders(conn, courier_id):
+        query = orders_table.select().where(
+            and_(orders_table.c.courier_id == courier_id, orders_table.c.completion_time == None))
+        return await conn.fetch(query)
+
+    @staticmethod
     async def add_regions(conn, courier_id, region_ids):
         if not region_ids:
             return
@@ -68,7 +74,7 @@ class CourierView(BaseView):
 
         conditions = []
         for region_id in region_ids:
-            conditions.extend(
+            conditions.append(
                 and_(couriers_regions_table.c.region_id == region_id,
                      couriers_regions_table.c.courier_id == courier_id
                      ),
@@ -110,13 +116,20 @@ class CourierView(BaseView):
         await conn.execute(query)
 
     @classmethod
-    async def update_courier(cls, conn, courier_id, data):
-        values = {k: v for k, v in data.items() if k not in ['regions', 'working_hours']}
+    async def update_courier_type(cls, conn, courier_id, data):
+        values = {'type': data['type']}
         if values:
             query = couriers_table.update().values(values).where(
                 couriers_table.c.courier_id == courier_id
             )
             await conn.execute(query)
+
+    @classmethod
+    async def remove_orders(cls, conn, order_ids):
+        values = {'courier_id': None, 'assignment_time': None}
+        conditions = or_(*list([orders_table.c.order_id == order_id for order_id in order_ids]))
+        query = orders_table.update().values(values).where(conditions)
+        await conn.execute(query)
 
     @docs(summary='Обновить указанного жителя в определенной выгрузке')
     @request_schema(CourierUpdateRequest())
@@ -132,9 +145,10 @@ class CourierView(BaseView):
             await self.acquire_lock(conn, self.courier_id)
             # Получаем информацию о жителе
             courier = await self.get_courier(conn, self.courier_id)
+            couriers_orders = await self.get_orders(conn, self.courier_id)
             # Обновляем таблицу couriers
             if 'type' in self.request['data']:
-                await self.update_courier(conn, self.courier_id, self.request['data'])
+                await self.update_courier_type(conn, self.courier_id, self.request['data'])
 
             if 'regions' in self.request['data']:
                 cur_regions = set(courier['regions'])
@@ -160,5 +174,27 @@ class CourierView(BaseView):
                 await self.remove_working_hours(conn, self.courier_id, cur_hours_ids)
                 await self.add_working_hours(conn, self.courier_id, new_hours)
 
-            courier = await self.get_courier(conn, self.courier_id)
-        return Response(body=courier)
+            query = COURIERS_QUERY.where(and_(
+                couriers_table.c.courier_id == self.courier_id,
+            ))
+            courier = await conn.fetchrow(query)
+
+            if len(couriers_orders) != 0:
+                orders_to_assign_ids = await AvailableOrdersDefiner().get_orders(conn, {
+                    'courier_id': courier['courier_id'],
+                    'type': courier['type'],
+                    'regions': list(dict.fromkeys(courier['regions'])),
+                    'working_hours': [
+                        {'time_start': courier['time_start'][i], 'time_finish': courier['time_finish'][i]}
+                        for i in range(len(courier['time_start']))]
+                }, courier['courier_id'])
+                orders_to_decline_ids = set([i['order_id'] for i in couriers_orders]) - set(orders_to_assign_ids)
+                await self.remove_orders(conn, orders_to_decline_ids)
+
+        return Response(body={
+            'courier_id': courier['courier_id'],
+            'type': courier['type'],
+            'regions': list(dict.fromkeys(courier['regions'])),
+            'working_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=courier['time_start'],
+                                                                        time_finish_intervals=courier['time_finish'])
+        })
