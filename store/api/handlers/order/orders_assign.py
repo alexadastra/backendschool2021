@@ -1,18 +1,16 @@
 from store.api.handlers.base import BaseView
 
 from http import HTTPStatus
-from typing import Generator
-from datetime import datetime
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_, or_
 
 from store.api.schema import OrdersAssignPostRequest, OrdersAssignPostResponse
-from store.db.schema import orders_table, couriers_table, orders_delivery_hours_table, delivery_hours_table, \
-    working_hours_table, couriers_working_hours_table
+from store.db.schema import orders_table, couriers_table
 
 from ..query import COURIERS_QUERY, ORDERS_QUERY, AvailableOrdersDefiner
+from ...domain import ISODatetimeFormatConverter
 
 
 class OrdersAssignmentView(BaseView):
@@ -40,8 +38,6 @@ class OrdersAssignmentView(BaseView):
         query = ORDERS_QUERY.where(and_(orders_table.c.courier_id == courier_id))
         return await conn.fetch(query)
 
-
-
     @staticmethod
     async def assign_orders(conn, orders_ids, courier_id, assignment_time):
         values = {'courier_id': courier_id, 'assignment_time': assignment_time}
@@ -62,14 +58,14 @@ class OrdersAssignmentView(BaseView):
             if orders:
                 return Response(body={'orders':
                                           [{'id': orders[i]['order_id']} for i in range(len(orders))],
-                                      'assignment_time': orders[0]['assignment_time'][0].isoformat("T") + "Z"})
+                                      'assign_time': orders[0]['assignment_time'][0].isoformat("T") + "Z"})
 
             orders_to_assign_ids = await AvailableOrdersDefiner().get_orders(conn, courier)
             if len(orders_to_assign_ids) == 0:
                 return Response(text='[]', content_type='application/json')
 
-            assignment_time = datetime.utcnow()
+            assignment_time = ISODatetimeFormatConverter.get_now()
             await self.assign_orders(conn, orders_to_assign_ids, courier_id, assignment_time)
 
             return Response(body={'orders': [{'id': id_} for id_ in orders_to_assign_ids],
-                                  'assignment_time': assignment_time.isoformat("T") + "Z"})
+                                  'assign_time': await ISODatetimeFormatConverter.parse_datetime(assignment_time)})

@@ -5,8 +5,6 @@ from http import HTTPStatus
 from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp.web_response import Response
 from aiohttp_apispec import docs, request_schema, response_schema
-from asyncpg import ForeignKeyViolationError
-from marshmallow import ValidationError
 from sqlalchemy import and_, or_
 
 from store.api.schema import CourierUpdateRequest, CourierItemSchema
