@@ -7,15 +7,15 @@ from aiohttp.web_response import Response
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_, or_
 
-from store.api.schema import CourierUpdateRequest, CourierItemSchema
+from store.api.schema import CourierUpdateRequest, CourierItemSchema, CourierGetResponseSchema
 from store.db.schema import couriers_table, couriers_regions_table, couriers_working_hours_table, working_hours_table, \
     regions_table, orders_table
 
-from ..query import COURIERS_QUERY, AvailableOrdersDefiner
-from ...domain import TimeIntervalsConverter
+from ..query import COURIERS_QUERY, AvailableOrdersDefiner, COURIERS_ORDERS_SEQUENCES_QUERY, COURIERS_ORDERS_REGIONS_QUERY
+from ...domain import TimeIntervalsConverter, CourierConfigurator
 
 
-class CourierView(BaseView):
+class CouriersView(BaseView):
     URL_PATH = r'/couriers/{courier_id:\d+}'
 
     @property
@@ -129,6 +129,29 @@ class CourierView(BaseView):
         query = orders_table.update().values(values).where(conditions)
         await conn.execute(query)
 
+    @classmethod
+    async def get_courier_orders_done_sequense_count(cls, conn, courier_id):
+        query = COURIERS_ORDERS_SEQUENCES_QUERY.where(
+            and_(orders_table.c.completion_time != None, orders_table.c.courier_id == courier_id)
+        )
+        total_sequences = await conn.fetchval(query)
+
+        query = COURIERS_ORDERS_SEQUENCES_QUERY.where(
+            and_(orders_table.c.completion_time == None, orders_table.c.courier_id == courier_id)
+        )
+        sequences_undone = await conn.fetchval(query)
+
+        return total_sequences if sequences_undone is None else total_sequences - sequences_undone
+
+    @classmethod
+    async def get_courier_t(cls, conn, courier_id):
+        query = COURIERS_ORDERS_REGIONS_QUERY.where(
+            and_(orders_table.c.completion_time != None, orders_table.c.courier_id == courier_id)
+        )
+        regions_average_delivery_timedelta = await conn.fetch(query)
+        return None if regions_average_delivery_timedelta == [] else \
+            min(*[row['average_timedelta'].total_seconds() for row in regions_average_delivery_timedelta])
+
     @docs(summary='Обновить указанного жителя в определенной выгрузке')
     @request_schema(CourierUpdateRequest())
     @response_schema(CourierItemSchema(), code=HTTPStatus.OK.value)
@@ -138,8 +161,7 @@ class CourierView(BaseView):
         # также для получения транзакционной advisory-блокировки.
         async with self.pg.transaction() as conn:
 
-            # Блокировка позволит избежать состояние гонки между конкурентными
-            # запросами на изменение родственников.
+            # Блокировка позволит избежать состояние гонки между конкурентными запросами
             await self.acquire_lock(conn, self.courier_id)
             # Получаем информацию о жителе
             courier = await self.get_courier(conn, self.courier_id)
@@ -196,3 +218,24 @@ class CourierView(BaseView):
             'working_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=courier['time_start'],
                                                                         time_finish_intervals=courier['time_finish'])
         })
+
+    @docs(summary='Get courier information')
+    # @request_schema()
+    @response_schema(CourierGetResponseSchema(), code=HTTPStatus.OK.value)
+    async def get(self):
+        # Транзакция требуется чтобы в случае ошибки (или отключения клиента,
+        # не дождавшегося ответа) откатить частично добавленные изменения.
+        async with self.pg.transaction() as conn:
+            courier = await self.get_courier(conn, self.courier_id)
+
+            courier_t = await self.get_courier_t(conn, self.courier_id)
+            sequences_count = await self.get_courier_orders_done_sequense_count(conn, self.courier_id)
+
+            if courier_t:
+                rating = await CourierConfigurator.calculate_rating(courier_t)
+                courier["rating"] = rating
+            if sequences_count:
+                earnings = await CourierConfigurator.calculate_earnings(sequences_count, courier["type"])
+                courier["earnings"] = earnings
+
+            return Response(body=courier)

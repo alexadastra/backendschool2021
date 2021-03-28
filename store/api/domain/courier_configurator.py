@@ -22,3 +22,11 @@ class CourierConfigurator:
             return 2
         else:
             return 0
+
+    @staticmethod
+    async def calculate_earnings(count, courier_type):
+        return count * 500 * await CourierConfigurator.get_courier_earnings_coefficient(courier_type)
+
+    @staticmethod
+    async def calculate_rating(t):
+        return round((60 * 60 - min(round(t), 60*60)) / (60*60) * 5, 2)
