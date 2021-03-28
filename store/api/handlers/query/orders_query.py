@@ -1,5 +1,4 @@
-from sqlalchemy import and_, func, select
-from sqlalchemy.orm import join
+from sqlalchemy import func, select
 
 from store.db.schema import orders_table, delivery_hours_table, orders_delivery_hours_table
 
@@ -7,6 +6,7 @@ from store.db.schema import orders_table, delivery_hours_table, orders_delivery_
 ORDERS_QUERY = select(
     [
         orders_table.c.order_id,
+        orders_table.c.courier_id,
         orders_table.c.weight,
         orders_table.c.region,
         func.array_remove(

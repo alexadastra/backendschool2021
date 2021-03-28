@@ -7,7 +7,7 @@ from aiohttp.web_response import Response
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_, or_
 
-from store.api.schema import CourierUpdateRequest, CourierItemSchema, CourierGetResponseSchema
+from store.api.schema import CourierUpdateRequestSchema, CourierItemSchema, CourierGetResponseSchema
 from store.db.schema import couriers_table, couriers_regions_table, couriers_working_hours_table, working_hours_table, \
     regions_table, orders_table
 
@@ -153,7 +153,7 @@ class CouriersView(BaseView):
             min(*[row['average_timedelta'].total_seconds() for row in regions_average_delivery_timedelta])
 
     @docs(summary='Обновить указанного жителя в определенной выгрузке')
-    @request_schema(CourierUpdateRequest())
+    @request_schema(CourierUpdateRequestSchema())
     @response_schema(CourierItemSchema(), code=HTTPStatus.OK.value)
     async def patch(self):
         # Транзакция требуется чтобы в случае ошибки (или отключения клиента,

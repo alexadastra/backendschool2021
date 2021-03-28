@@ -7,7 +7,7 @@ from aiohttp.web_response import Response
 from aiohttp_apispec import docs, request_schema, response_schema
 from aiomisc import chunk_list
 
-from store.api.schema import OrdersPostRequest, OrdersIds
+from store.api.schema import OrdersPostRequestSchema, OrdersIdsSchema
 from store.db.schema import orders_table, delivery_hours_table, orders_delivery_hours_table
 from store.utils.pg import MAX_QUERY_ARGS
 
@@ -56,8 +56,8 @@ class OrdersImportsView(BaseView):
                 id_counter += 1
 
     @docs(summary='Add import with orders information')
-    @request_schema(OrdersPostRequest())
-    @response_schema(OrdersIds(), code=HTTPStatus.CREATED.value)
+    @request_schema(OrdersPostRequestSchema())
+    @response_schema(OrdersIdsSchema(), code=HTTPStatus.CREATED.value)
     async def post(self):
         async with self.pg.transaction() as conn:
 
@@ -89,5 +89,5 @@ class OrdersImportsView(BaseView):
             for chunk in chunked_orders_delivery_hours_table_rows:
                 await conn.execute(query.values(list(chunk)))
 
-        return Response(body={'orders': list(chunk_list(orders_ids, self.MAX_ORDERS_PER_INSERT))},
+        return Response(body={'orders': list(*chunk_list(orders_ids, self.MAX_ORDERS_PER_INSERT))},
                         status=HTTPStatus.CREATED)

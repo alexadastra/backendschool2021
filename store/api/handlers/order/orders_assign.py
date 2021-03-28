@@ -6,7 +6,7 @@ from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_, or_
 
-from store.api.schema import OrdersAssignPostRequest, OrdersAssignPostResponse
+from store.api.schema import OrdersAssignPostRequestSchema, OrdersAssignPostResponseSchema
 from store.db.schema import orders_table, couriers_table
 
 from ..query import COURIERS_QUERY, ORDERS_QUERY, AvailableOrdersDefiner
@@ -46,8 +46,8 @@ class OrdersAssignmentView(BaseView):
         await conn.execute(query)
 
     @docs(summary='Assign orders to couriers')
-    @request_schema(OrdersAssignPostRequest())
-    @response_schema(OrdersAssignPostResponse(), code=HTTPStatus.OK.value)
+    @request_schema(OrdersAssignPostRequestSchema())
+    @response_schema(OrdersAssignPostResponseSchema(), code=HTTPStatus.OK.value)
     async def post(self):
         # Транзакция требуется чтобы в случае ошибки (или отключения клиента,
         # не дождавшегося ответа) откатить частично добавленные изменения.

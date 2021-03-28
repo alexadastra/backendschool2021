@@ -7,7 +7,7 @@ from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_
 
-from store.api.schema import OrdersCompletePostRequest, OrdersCompletePostResponse
+from store.api.schema import OrdersCompletePostRequestSchema, OrdersCompletePostResponseSchema
 from store.db.schema import orders_table
 
 from ...domain import ISODatetimeFormatConverter
@@ -17,8 +17,8 @@ class OrdersCompletionView(BaseView):
     URL_PATH = r'/orders/complete'
 
     @docs(summary='Set order as complete')
-    @request_schema(OrdersCompletePostRequest())
-    @response_schema(OrdersCompletePostResponse(), code=HTTPStatus.OK.value)
+    @request_schema(OrdersCompletePostRequestSchema())
+    @response_schema(OrdersCompletePostResponseSchema(), code=HTTPStatus.OK.value)
     async def post(self):
         # Транзакция требуется чтобы в случае ошибки (или отключения клиента,
         # не дождавшегося ответа) откатить частично добавленные изменения.

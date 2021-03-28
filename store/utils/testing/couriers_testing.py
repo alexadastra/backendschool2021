@@ -9,11 +9,10 @@ from aiohttp.typedefs import StrOrURL
 from aiohttp.web_urldispatcher import DynamicResource
 
 from store.api.handlers import (
-    CouriersImportsView, CouriersView, OrdersImportsView, OrdersAssignmentView, OrdersCompletionView,
+    CouriersImportsView, CouriersView
 )
 from store.api.schema import (
-    CouriersPostRequestSchema, CouriersIdsSchema, CourierGetResponseSchema, CourierUpdateRequest, CourierItemSchema, OrdersPostRequest,
-    OrdersIds, OrdersAssignPostResponse, OrdersAssignPostRequest, OrdersCompletePostRequest, OrdersCompletePostResponse
+    CouriersIdsSchema, CourierGetResponseSchema, CourierItemSchema,
 )
 from store.utils.pg import MAX_INTEGER
 

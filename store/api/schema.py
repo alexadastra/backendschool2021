@@ -39,6 +39,24 @@ def validate_time_mark(time_mark, value_title, i):
     return hours, minutes
 
 
+class PostRequestSchema(Schema):
+    data = Nested(CouriersNested)
+
+    @validates_schema
+    def validate_unique_courier_id(self, data, **_):
+        courier_ids_set = set()
+        couriers_ids_list = list()
+        for courier in data['data']:
+            courier_ids_set.add(courier['courier_id'])
+            couriers_ids_list.append(courier['courier_id'])
+        if len(couriers_ids_list) != len(courier_ids_set):
+            raise ValidationError(
+                {'data': {'validation_error': [
+                    {'id': i
+                     } for i in [item for item in courier_ids_set if couriers_ids_list.count(item) > 1]
+                ]}})
+
+
 def validate_hour_intervals_list(hour_intervals_list, value_title):
     for i in range(len(hour_intervals_list)):
         hour_interval = hour_intervals_list[i]
@@ -80,7 +98,7 @@ class CourierItemSchema(Schema):
         validate_hour_intervals_list(value, "working_hours")
 
 
-class CouriersPostRequestSchema(Schema):
+class CouriersPostRequestSchema(PostRequestSchema):
     data = CouriersNested(CourierItemSchema, many=True, required=True,
                           validate=Length(max=10000))  # rewrite according to courier schema
 
@@ -113,7 +131,7 @@ class CourierGetResponseSchema(CourierItemSchema):
     earnings = Int(validate=Range(min=0), strict=True)
 
 
-class CourierUpdateRequest(Schema):
+class CourierUpdateRequestSchema(Schema):
     type = Str(validate=OneOf([courier_type.value for courier_type in CourierType]))
     regions = List(Int(validate=Range(min=0)), strict=True)
     working_hours = List(Str())
@@ -128,7 +146,7 @@ class OrderItemSchema(Schema):
     order_id = Int(validate=Range(min=0), strict=True, required=True)
     weight = Float(validate=Range(min=0.01, max=50), strict=True, required=True)
     region = Int(validate=Range(min=0), strict=True, required=True)
-    delivery_hours = List(Str(), required=True)
+    delivery_hours = List(Str(validate=Length(min=0, max=10000)), required=True)
 
     @validates('delivery_hours')
     def validate_working_hours(self, value):
@@ -136,31 +154,51 @@ class OrderItemSchema(Schema):
         validate_hour_intervals_list(value, "delivery hours")
 
 
-class OrdersPostRequest(Schema):
+class OrdersPostRequestSchema(PostRequestSchema):
     data = OrdersNested(OrderItemSchema, many=True, required=True,
                         validate=Length(max=10000))  # rewrite according to courier schema
 
+    @validates_schema
+    def validate_unique_courier_id(self, data, **_):
+        ids_set = set()
+        ids_list = list()
+        for order in data['data']:
+            ids_set.add(order['order_id'])
+            ids_list.append(order['order_id'])
+        if len(ids_list) != len(ids_set):
+            raise ValidationError(
+                {'data': {'validation_error': [
+                    {'id': i
+                     } for i in [item for item in ids_set if ids_list.count(item) > 1]
+                ]}})
 
-class OrdersIds(Schema):
-    items = Nested(SingleIdSchema, many=True, required=True,
+
+class OrdersIdsSchema(Schema):
+    orders = Nested(SingleIdSchema, many=True, required=True,
                    validate=Length(max=10000))  # rewrite according to response schema
 
 
-class OrdersAssignPostResponse(Schema):
+class OrdersGetResponseSchema(OrderItemSchema):
+    courier_id = Int()
+    assign_time = Str(strict=True)
+    complete_time = Str(strict=True)
+
+
+class OrdersAssignPostResponseSchema(Schema):
     orders = Nested(SingleIdSchema, many=True, required=True,
                     validate=Length(max=10000))  # rewrite according to response schema
-    assign_time = Str()
+    assign_time = Str(required=True)
 
 
-class OrdersAssignPostRequest(Schema):
+class OrdersAssignPostRequestSchema(Schema):
     courier_id = Int(validate=Range(min=0), strict=True, required=True)
 
 
-class OrdersCompletePostRequest(Schema):
+class OrdersCompletePostRequestSchema(Schema):
     courier_id = Int(validate=Range(min=0), strict=True, required=True)
     order_id = Int(validate=Range(min=0), strict=True, required=True)
     complete_time = Str(required=True)
 
 
-class OrdersCompletePostResponse(Schema):
+class OrdersCompletePostResponseSchema(Schema):
     order_id = Int(validate=Range(min=0), strict=True, required=True)

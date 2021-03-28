@@ -2,9 +2,9 @@ from http import HTTPStatus
 
 import pytest
 
-from store.utils.testing.couriers_testing import (
-    generate_courier, get_courier,
-    import_couriers, compare_couriers
+from store.utils.testing.orders_testing import (
+    generate_order, get_order,
+    import_orders, compare_orders
 )
 
 LONGEST_STR = 'ё' * 256
@@ -13,7 +13,7 @@ CASES = (
     # Обработчик должен корректно создавать выгрузку с одним жителем.
     (
         [
-            generate_courier()
+            generate_order()
         ],
         HTTPStatus.CREATED
     ),
@@ -23,9 +23,9 @@ CASES = (
     # родственные связи.
     (
         [
-            generate_courier(courier_id=1, regions=[2, 3]),
-            generate_courier(courier_id=2, regions=[], working_hours=["09:00-13:00", "19:00-21:00"]),
-            generate_courier(courier_id=3, regions=[1], working_hours=["09:00-18:00"])
+            generate_order(order_id=1, region=2, delivery_hours=["09:00-18:00"]),
+            generate_order(order_id=2, region=3, delivery_hours=["09:00-13:00", "19:00-21:00"]),
+            generate_order(order_id=3, region=1, delivery_hours=["09:00-18:00"])
         ],
         HTTPStatus.CREATED
     ),
@@ -46,7 +46,7 @@ CASES = (
     # Дата рождения некорректная (в будущем)
     (
         [
-            generate_courier(courier_id=-1),
+            generate_order(order_id=-1),
         ],
         HTTPStatus.BAD_REQUEST
     ),
@@ -54,8 +54,8 @@ CASES = (
     # citizen_id не уникален в рамках выгрузки
     (
         [
-            generate_courier(courier_id=1),
-            generate_courier(courier_id=1),
+            generate_order(order_id=1),
+            generate_order(order_id=1),
         ],
         HTTPStatus.BAD_REQUEST
     ),
@@ -63,25 +63,14 @@ CASES = (
 )
 
 
-@pytest.mark.parametrize('couriers, expected_status', CASES)
-async def test_couriers_import(api_client, couriers, expected_status):
-    data = await import_couriers(api_client, couriers, expected_status)
+@pytest.mark.parametrize('orders, expected_status', CASES)
+async def test_orders_import(api_client, orders, expected_status):
+    data = await import_orders(api_client, orders, expected_status)
 
     # Проверяем, что данные успешно импортированы
     if expected_status == HTTPStatus.CREATED:
-        for courier in couriers:
-            imported_courier = await get_courier(api_client, courier['courier_id'])
-            assert compare_couriers(courier, imported_courier)
-
-"""
-    (
-        generate_couriers(
-            couriers_num=10000,
-            start_courier_id=MAX_INTEGER - 10000,
-            type='foot',
-            regions=[MAX_INTEGER for i in range(MAX_INTEGER)],
-            working_hours=["09:00-18:00" for i in range(MAX_INTEGER)]
-        ),
-        HTTPStatus.CREATED
-    )
-"""
+        for order in orders:
+            imported_order = await get_order(api_client, order['order_id'])
+            print(imported_order)
+            imported_order = {k: imported_order[k] for k in imported_order.keys() if k in order.keys()}
+            assert compare_orders(order, imported_order)

@@ -3,6 +3,7 @@ from .order.orders_imports import OrdersImportsView
 from .courier.couriers import CouriersView
 from .order.orders_assign import OrdersAssignmentView
 from .order.orders_complete import OrdersCompletionView
+from .order.orders import OrdersView
 
 HANDLERS = (
     CouriersImportsView,  # POST /couriers
@@ -10,4 +11,5 @@ HANDLERS = (
     OrdersImportsView,  # POST /orders
     OrdersAssignmentView,  # POST /orders/assign
     OrdersCompletionView,   # POST /orders/complete
+    OrdersView
 )

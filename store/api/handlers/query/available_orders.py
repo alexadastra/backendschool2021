@@ -8,7 +8,7 @@ from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy import and_, or_
 
-from store.api.schema import OrdersAssignPostRequest, OrdersAssignPostResponse
+from store.api.schema import OrdersAssignPostRequestSchema, OrdersAssignPostResponseSchema
 from store.db.schema import orders_table, couriers_table, orders_delivery_hours_table, delivery_hours_table, \
     working_hours_table, couriers_working_hours_table
 
