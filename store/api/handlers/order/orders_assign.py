@@ -26,7 +26,7 @@ class OrdersAssignmentView(BaseView):
             raise HTTPNotFound()
         return {
             'courier_id': courier['courier_id'],
-            'type': courier['type'],
+            'courier_type': courier['courier_type'],
             'regions': list(dict.fromkeys(courier['regions'])),
             'working_hours': [
                 {'time_start': courier['time_start'][i], 'time_finish': courier['time_finish'][i]}

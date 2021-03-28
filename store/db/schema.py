@@ -33,7 +33,7 @@ couriers_table = Table(
     'couriers',
     metadata,
     Column('courier_id', Integer, primary_key=True),
-    Column('type', PgEnum(CourierType, name='type'), nullable=False)
+    Column('courier_type', PgEnum(CourierType, name='type'), nullable=False)
 )
 
 regions_table = Table(

@@ -110,7 +110,7 @@ class CouriersIdsSchema(Schema):
 
 class CourierGetResponseSchema(CourierItemSchema):
     rating = Float(validate=Range(min=0), strict=True)
-    earnings = Int(validate=Range(min=0), strict=True, required=True)
+    earnings = Int(validate=Range(min=0), strict=True)
 
 
 class CourierUpdateRequest(Schema):

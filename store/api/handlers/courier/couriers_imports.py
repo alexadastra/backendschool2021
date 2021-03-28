@@ -33,7 +33,7 @@ class CouriersImportsView(BaseView):
         for courier in couriers:
             yield {
                 'courier_id': courier['courier_id'],
-                'type': courier['courier_type']
+                'courier_type': courier['courier_type']
             }
 
     @classmethod
@@ -157,5 +157,5 @@ class CouriersImportsView(BaseView):
             for chunk in chunked_couriers_working_hours_table_rows:
                 await conn.execute(query.values(list(chunk)))
 
-        return Response(body={'couriers': list(chunk_list(couriers_ids, self.MAX_COURIERS_PER_INSERT))},
+        return Response(body={'couriers': list(*chunk_list(couriers_ids, self.MAX_COURIERS_PER_INSERT))},
                         status=HTTPStatus.CREATED)

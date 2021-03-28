@@ -36,7 +36,7 @@ class CouriersView(BaseView):
             raise HTTPNotFound()
         return {
             'courier_id': courier['courier_id'],
-            'type': courier['type'],
+            'courier_type': courier['courier_type'],
             'regions': list(dict.fromkeys(courier['regions'])),
             'working_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=courier['time_start'],
                                                                         time_finish_intervals=courier['time_finish'])
@@ -115,7 +115,7 @@ class CouriersView(BaseView):
 
     @classmethod
     async def update_courier_type(cls, conn, courier_id, data):
-        values = {'type': data['type']}
+        values = {'courier_type': data['courier_type']}
         if values:
             query = couriers_table.update().values(values).where(
                 couriers_table.c.courier_id == courier_id
@@ -167,7 +167,7 @@ class CouriersView(BaseView):
             courier = await self.get_courier(conn, self.courier_id)
             couriers_orders = await self.get_orders(conn, self.courier_id)
             # Обновляем таблицу couriers
-            if 'type' in self.request['data']:
+            if 'courier_type' in self.request['data']:
                 await self.update_courier_type(conn, self.courier_id, self.request['data'])
 
             if 'regions' in self.request['data']:
@@ -202,7 +202,7 @@ class CouriersView(BaseView):
             if len(couriers_orders) != 0:
                 orders_to_assign_ids = await AvailableOrdersDefiner().get_orders(conn, {
                     'courier_id': courier['courier_id'],
-                    'type': courier['type'],
+                    'courier_type': courier['courier_type'],
                     'regions': list(dict.fromkeys(courier['regions'])),
                     'working_hours': [
                         {'time_start': courier['time_start'][i], 'time_finish': courier['time_finish'][i]}
@@ -213,7 +213,7 @@ class CouriersView(BaseView):
 
         return Response(body={
             'courier_id': courier['courier_id'],
-            'type': courier['type'],
+            'courier_type': courier['courier_type'],
             'regions': list(dict.fromkeys(courier['regions'])),
             'working_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=courier['time_start'],
                                                                         time_finish_intervals=courier['time_finish'])

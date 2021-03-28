@@ -9,16 +9,13 @@ from aiohttp.typedefs import StrOrURL
 from aiohttp.web_urldispatcher import DynamicResource
 
 from store.api.handlers import (
-    CitizenBirthdaysView, CitizensView, CitizenView, ImportsView,
-    TownAgeStatView,
+    CouriersImportsView, CouriersView, OrdersImportsView, OrdersAssignmentView, OrdersCompletionView,
 )
 from store.api.schema import (
-    BIRTH_DATE_FORMAT, CitizenPresentsResponseSchema, CitizensResponseSchema,
-    ImportResponseSchema, PatchCitizenResponseSchema,
-    TownAgeStatResponseSchema,
+    CouriersPostRequestSchema, CouriersIdsSchema, CourierGetResponseSchema, CourierUpdateRequest, CourierItemSchema, OrdersPostRequest,
+    OrdersIds, OrdersAssignPostResponse, OrdersAssignPostRequest, OrdersCompletePostRequest, OrdersCompletePostResponse
 )
 from store.utils.pg import MAX_INTEGER
-
 
 fake = faker.Faker('ru_RU')
 
@@ -34,170 +31,102 @@ def url_for(path: str, **kwargs) -> str:
     return str(DynamicResource(path).url_for(**kwargs))
 
 
-def generate_citizen(
-        citizen_id: Optional[int] = None,
-        name: Optional[str] = None,
-        birth_date: Optional[str] = None,
-        gender: Optional[str] = None,
-        town: Optional[str] = None,
-        street: Optional[str] = None,
-        building: Optional[str] = None,
-        apartment: Optional[int] = None,
-        relatives: Optional[List[int]] = None
+def generate_courier(
+        courier_id: Optional[int] = None,
+        courier_type: Optional[str] = None,
+        regions: Optional[List[int]] = None,
+        working_hours: Optional[List[str]] = None
 ) -> Dict[str, Any]:
-    """
-    Создает и возвращает жителя, автоматически генерируя данные для не
-    указанных полей.
-    """
-    if citizen_id is None:
-        citizen_id = randint(0, MAX_INTEGER)
+    if courier_id is None:
+        courier_id = randint(0, MAX_INTEGER)
 
-    if gender is None:
-        gender = choice(('female', 'male'))
+    if courier_type is None:
+        courier_type = choice(('foot', 'bike', 'car'))
 
-    if name is None:
-        name = fake.name_female() if gender == 'female' else fake.name_male()
+    if regions is None:
+        regions = []
 
-    if birth_date is None:
-        birth_date = fake.date_of_birth(
-            minimum_age=0, maximum_age=80
-        ).strftime(BIRTH_DATE_FORMAT)
-
-    if town is None:
-        town = fake.city_name()
-
-    if street is None:
-        street = fake.street_name()
-
-    if building is None:
-        building = str(randrange(1, 100))
-
-    if apartment is None:
-        apartment = randrange(1, 120)
-
-    if relatives is None:
-        relatives = []
+    if working_hours is None:
+        working_hours = []
 
     return {
-        'citizen_id': citizen_id,
-        'name': name,
-        'birth_date': birth_date,
-        'gender': gender,
-        'town': town,
-        'street': street,
-        'building': building,
-        'apartment': apartment,
-        'relatives': relatives,
+        'courier_id': courier_id,
+        'courier_type': courier_type,
+        'regions': regions,
+        'working_hours': working_hours
     }
 
 
-def generate_citizens(
-        citizens_num: int,
-        relations_num: Optional[int] = None,
-        unique_towns: int = 20,
-        start_citizen_id: int = 0,
-        **citizen_kwargs
+def generate_couriers(
+        couriers_num: int,
+        unique_regions: int = 10,
+        unique_working_hours: int = 10,
+        start_courier_id: int = 0,
+        **courier_kwargs
 ) -> List[Dict[str, Any]]:
-    """
-    Генерирует список жителей.
+    # regions = [randrange(1, unique_regions) for _ in range(unique_regions)]
 
-    :param citizens_num: Количество жителей
-    :param relations_num: Количество родственных связей (подразумевается одна
-            связь между двумя людьми)
-    :param unique_towns: Кол-во уникальных городов в выгрузке
-    :param start_citizen_id: С какого citizen_id начинать
-    :param citizen_kwargs: Аргументы для функции generate_citizen
-    """
-    # Ограничнный набор городов
-    towns = [fake.city_name() for _ in range(unique_towns)]
+    max_courier_id = start_courier_id + couriers_num - 1
+    couriers = {}
+    for courier_id in range(start_courier_id, max_courier_id + 1):
+        # citizen_kwargs['town'] = courier_kwargs.get('town', choice(towns))
+        couriers[courier_id] = generate_courier(courier_id=courier_id, **courier_kwargs)
 
-    # Создаем жителей
-    max_citizen_id = start_citizen_id + citizens_num - 1
-    citizens = {}
-    for citizen_id in range(start_citizen_id, max_citizen_id + 1):
-        citizen_kwargs['town'] = citizen_kwargs.get('town', choice(towns))
-        citizens[citizen_id] = generate_citizen(citizen_id=citizen_id,
-                                                **citizen_kwargs)
-
-    # Создаем родственные связи
-    unassigned_relatives = relations_num or citizens_num // 10
-    shuffled_citizen_ids = list(citizens.keys())
-    while unassigned_relatives:
-        # Перемешиваем список жителей
-        shuffle(shuffled_citizen_ids)
-
-        # Выбираем жителя, кому ищем родственника
-        citizen_id = shuffled_citizen_ids[0]
-
-        # Выбираем родственника для этого жителя и проставляем
-        # двустороннюю связь
-        for relative_id in shuffled_citizen_ids[1:]:
-            if relative_id not in citizens[citizen_id]['relatives']:
-                citizens[citizen_id]['relatives'].append(relative_id)
-                citizens[relative_id]['relatives'].append(citizen_id)
-                break
-        else:
-            raise ValueError('Unable to choose relative for citizen')
-        unassigned_relatives -= 1
-
-    return list(citizens.values())
+    return list(couriers.values())
 
 
-def normalize_citizen(citizen):
-    """
-    Преобразует объект с жителем для сравнения с другими.
-    """
-    return {**citizen, 'relatives': sorted(citizen['relatives'])}
+def normalize_courier(courier):
+    return {**courier, 'regions': sorted(courier['regions']), 'working_hours': sorted(courier['working_hours'])}
 
 
-def compare_citizens(left: Mapping, right: Mapping) -> bool:
-    return normalize_citizen(left) == normalize_citizen(right)
+def compare_couriers(left: Mapping, right: Mapping) -> bool:
+    return normalize_courier(left) == normalize_courier(right)
 
 
-def compare_citizen_groups(left: Iterable, right: Iterable) -> bool:
-    left = [normalize_citizen(citizen) for citizen in left]
-    left.sort(key=lambda citizen: citizen['citizen_id'])
+def compare_courier_groups(left: Iterable, right: Iterable) -> bool:
+    left = [normalize_courier(courier) for courier in left]
+    left.sort(key=lambda courier: courier['courier_id'])
 
-    right = [normalize_citizen(citizen) for citizen in right]
-    right.sort(key=lambda citizen: citizen['citizen_id'])
+    right = [normalize_courier(courier) for courier in right]
+    right.sort(key=lambda courier: courier['courier_id'])
     return left == right
 
 
-async def import_data(
+async def import_couriers(
         client: TestClient,
-        citizens: List[Mapping[str, Any]],
+        couriers: List[Mapping[str, Any]],
         expected_status: Union[int, EnumMeta] = HTTPStatus.CREATED,
         **request_kwargs
-) -> Optional[int]:
+) -> Optional[List[dict]]:
     response = await client.post(
-        ImportsView.URL_PATH, json={'citizens': citizens}, **request_kwargs
+        CouriersImportsView.URL_PATH, json={'data': couriers}, **request_kwargs
     )
     assert response.status == expected_status
 
     if response.status == HTTPStatus.CREATED:
         data = await response.json()
-        errors = ImportResponseSchema().validate(data)
+        errors = CouriersIdsSchema().validate(data)
         assert errors == {}
-        return data['data']['import_id']
+        return data
 
 
-async def get_citizens(
+async def get_courier(
         client: TestClient,
-        import_id: int,
+        courier_id: int,
         expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
         **request_kwargs
-) -> List[dict]:
+) -> dict:
     response = await client.get(
-        url_for(CitizensView.URL_PATH, import_id=import_id),
+        url_for(CouriersView.URL_PATH, courier_id=courier_id),
         **request_kwargs
     )
     assert response.status == expected_status
 
     if response.status == HTTPStatus.OK:
         data = await response.json()
-        errors = CitizensResponseSchema().validate(data)
+        errors = CourierGetResponseSchema().validate(data)
         assert errors == {}
-        return data['data']
+        return data
 
 
 async def patch_citizen(
@@ -206,7 +135,7 @@ async def patch_citizen(
         citizen_id: int,
         data: Mapping[str, Any],
         expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
-        str_or_url: StrOrURL = CitizenView.URL_PATH,
+        str_or_url: StrOrURL = CouriersView.URL_PATH,
         **request_kwargs
 ):
     response = await client.patch(
@@ -218,42 +147,6 @@ async def patch_citizen(
     assert response.status == expected_status
     if response.status == HTTPStatus.OK:
         data = await response.json()
-        errors = PatchCitizenResponseSchema().validate(data)
-        assert errors == {}
-        return data['data']
-
-
-async def get_citizens_birthdays(
-        client: TestClient,
-        import_id: int,
-        expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
-        **request_kwargs
-):
-    response = await client.get(
-        url_for(CitizenBirthdaysView.URL_PATH, import_id=import_id),
-        **request_kwargs
-    )
-    assert response.status == expected_status
-    if response.status == HTTPStatus.OK:
-        data = await response.json()
-        errors = CitizenPresentsResponseSchema().validate(data)
-        assert errors == {}
-        return data['data']
-
-
-async def get_citizens_ages(
-        client: TestClient,
-        import_id: int,
-        expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
-        **request_kwargs
-):
-    response = await client.get(
-        url_for(TownAgeStatView.URL_PATH, import_id=import_id),
-        **request_kwargs
-    )
-    assert response.status == expected_status
-    if response.status == HTTPStatus.OK:
-        data = await response.json()
-        errors = TownAgeStatResponseSchema().validate(data)
+        errors = CourierItemSchema().validate(data)
         assert errors == {}
         return data['data']

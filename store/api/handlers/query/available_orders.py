@@ -65,7 +65,7 @@ class AvailableOrdersDefiner:
         return await conn.fetch(query)
 
     async def get_orders(self, conn, courier, courier_id=None):
-        courier['carrying_capacity'] = await CourierConfigurator.get_courier_carrying_capacity(courier['type'])
+        courier['carrying_capacity'] = await CourierConfigurator.get_courier_carrying_capacity(courier['courier_type'])
 
         orders = await self.get_available_orders(conn, courier, courier_id)
         if not orders:

@@ -7,7 +7,7 @@ from store.db.schema import couriers_table, working_hours_table, couriers_workin
 COURIERS_QUERY = select(
     [
         couriers_table.c.courier_id,
-        couriers_table.c.type,
+        couriers_table.c.courier_type,
         # В результате LEFT JOIN у жителей не имеющих родственников список
         # relatives будет иметь значение [None]. Чтобы удалить это значение
         # из списка используется функция array_remove.
