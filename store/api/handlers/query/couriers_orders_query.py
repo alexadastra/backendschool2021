@@ -15,9 +15,18 @@ COURIERS_ORDERS_SEQUENCES_QUERY = select([
 
 COURIERS_ORDERS_REGIONS_QUERY = select([
     orders_table.c.region,
-    func.avg(orders_table.c.completion_time - orders_table.c.assignment_time).label('average_timedelta')
+    func.avg(orders_table.c.completion_time - orders_table.c.delivery_start_time).label('average_timedelta')
 ]).select_from(
     orders_table
 ) .group_by(
     orders_table.c.region,
+)
+
+COURIERS_ORDERS_LAST_COMPLETION_TIME = select([
+    func.max(orders_table.c.completion_time),
+    orders_table.c.assignment_time,
+]).select_from(
+    orders_table
+).group_by(
+    orders_table.c.assignment_time
 )

@@ -74,6 +74,7 @@ orders_table = Table(
     Column('weight', Float, nullable=False),
     Column('region', Integer, nullable=False),
     Column('assignment_time', DateTime, default=None),
+    Column('delivery_start_time', DateTime, default=None),
     Column('completion_time', DateTime, default=None)
 )
 

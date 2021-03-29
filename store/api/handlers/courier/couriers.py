@@ -242,5 +242,7 @@ class CouriersView(BaseView):
             if sequences_count:
                 earnings = await CourierConfigurator.calculate_earnings(sequences_count, courier["courier_type"])
                 courier["earnings"] = earnings
+            else:
+                courier["earnings"] = 0
 
             return Response(body=courier)
