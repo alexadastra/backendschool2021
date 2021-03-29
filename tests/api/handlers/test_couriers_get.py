@@ -18,7 +18,7 @@ CASES = (
         [],
         [],
         HTTPStatus.OK,
-        {'courier_id': 1, 'courier_type': 'foot', 'regions': [], 'working_hours': []}
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [], 'working_hours': [], "earnings": 0}
     ),
 
     (
@@ -26,7 +26,16 @@ CASES = (
         [{'order_id': 1, 'weight': 0.1, 'region': 1, 'delivery_hours': ["09:00-18:00"]}],
         [],
         HTTPStatus.OK,
-        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1], 'working_hours': ["09:00-18:00"]}
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1], 'working_hours': ["09:00-18:00"], "earnings": 0}
+    ),
+
+    (
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1], 'working_hours': ["09:00-18:00"]},
+        [{'order_id': 1, 'weight': 0.1, 'region': 1, 'delivery_hours': ["09:00-18:00"]}],
+        [{'id': 1, 'time': 0}],
+        HTTPStatus.OK,
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1],
+         'working_hours': ["09:00-18:00"], "rating": 5.0, "earnings": 1000}
     ),
 
     (
@@ -36,6 +45,25 @@ CASES = (
         HTTPStatus.OK,
         {'courier_id': 1, 'courier_type': 'foot', 'regions': [1],
          'working_hours': ["09:00-18:00"], "rating": 4.17, "earnings": 1000}
+    ),
+
+    (
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1], 'working_hours': ["09:00-18:00"]},
+        [{'order_id': 1, 'weight': 0.1, 'region': 1, 'delivery_hours': ["09:00-18:00"]}],
+        [{'id': 1, 'time': 60}],
+        HTTPStatus.OK,
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1],
+         'working_hours': ["09:00-18:00"], "rating": 0.0, "earnings": 1000}
+    ),
+
+    (
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1], 'working_hours': ["09:00-18:00"]},
+        [{'order_id': 1, 'weight': 0.1, 'region': 1, 'delivery_hours': ["09:00-18:00"]},
+         {'order_id': 2, 'weight': 0.1, 'region': 1, 'delivery_hours': ["09:00-18:00"]}],
+        [{'id': 1, 'time': 10}],
+        HTTPStatus.OK,
+        {'courier_id': 1, 'courier_type': 'foot', 'regions': [1],
+         'working_hours': ["09:00-18:00"], "rating": 4.17, "earnings": 0}
     ),
 
 )
@@ -51,7 +79,7 @@ async def test_couriers_get(api_client, courier, orders_assign, orders_complete_
         assign_time = await ISODatetimeFormatConverter.parse_iso_string(assignment['assign_time'])
 
         for order in orders_complete_ids:
-            complete_time = assign_time.replace(minute=assign_time.minute + order['time'])
+            complete_time = assign_time + datetime.timedelta(minutes=order['time'])
             await complete_orders(api_client,
                                   courier['courier_id'],
                                   order['id'],

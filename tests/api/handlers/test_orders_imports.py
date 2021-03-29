@@ -1,9 +1,9 @@
 from http import HTTPStatus
-
+from store.utils.pg import MAX_INTEGER
 import pytest
 
 from store.utils.testing.orders_testing import (
-    generate_order, get_order,
+    generate_order, generate_orders, get_order,
     import_orders, compare_orders
 )
 
@@ -60,6 +60,45 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
+    (
+        generate_orders(
+            orders_num=10000,
+            start_order_id=MAX_INTEGER - 10000,
+        ),
+        HTTPStatus.CREATED
+    ),
+
+    (
+        [
+        {
+            "order_id": 1,
+            "weight": 0.23,
+            "region": 12,
+            "delivery_hours": [
+                "09:00-18:00"
+            ]
+        },
+        {
+            "order_id": 2,
+            "weight": 15,
+            "region": 1,
+            "delivery_hours": [
+                "09:00-18:00"
+            ]
+        },
+        {
+            "order_id": 3,
+            "weight": 0.01,
+            "region": 22,
+            "delivery_hours": [
+                "09:00-12:00",
+                "16:00-21:30"
+            ]
+        }
+        ],
+        HTTPStatus.CREATED
+    )
+
 )
 
 
@@ -71,6 +110,5 @@ async def test_orders_import(api_client, orders, expected_status):
     if expected_status == HTTPStatus.CREATED:
         for order in orders:
             imported_order = await get_order(api_client, order['order_id'])
-            print(imported_order)
             imported_order = {k: imported_order[k] for k in imported_order.keys() if k in order.keys()}
             assert compare_orders(order, imported_order)

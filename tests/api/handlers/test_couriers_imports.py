@@ -1,9 +1,9 @@
 from http import HTTPStatus
-
+from store.utils.pg import MAX_INTEGER
 import pytest
 
 from store.utils.testing.couriers_testing import (
-    generate_courier, get_courier,
+    generate_courier, generate_couriers, get_courier_for_testing,
     import_couriers, compare_couriers
 )
 
@@ -60,6 +60,56 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
+    (
+        generate_couriers(
+            couriers_num=10000,
+            start_courier_id=MAX_INTEGER - 10000,
+            # regions=[MAX_INTEGER for i in range(10000)],
+            # working_hours=["09:00-18:00" for i in range(10000)]
+        ),
+        HTTPStatus.CREATED
+    ),
+
+    (
+[
+        {
+            "courier_id": 1,
+            "courier_type": "foot",
+            "regions": [
+                1,
+                12,
+                22
+            ],
+            "working_hours": [
+                "11:35-14:05",
+                "09:00-11:00"
+            ]
+        },
+        {
+            "courier_id": 2,
+            "courier_type": "bike",
+            "regions": [
+                22
+            ],
+            "working_hours": [
+                "09:00-18:00"
+            ]
+        },
+        {
+            "courier_id": 3,
+            "courier_type": "car",
+            "regions": [
+                12,
+                22,
+                23,
+                33
+            ],
+            "working_hours": []
+        }
+    ],
+        HTTPStatus.CREATED
+    )
+
 )
 
 
@@ -70,18 +120,5 @@ async def test_couriers_import(api_client, couriers, expected_status):
     # Проверяем, что данные успешно импортированы
     if expected_status == HTTPStatus.CREATED:
         for courier in couriers:
-            imported_courier = await get_courier(api_client, courier['courier_id'])
+            imported_courier = await get_courier_for_testing(api_client, courier['courier_id'])
             assert compare_couriers(courier, imported_courier)
-
-"""
-    (
-        generate_couriers(
-            couriers_num=10000,
-            start_courier_id=MAX_INTEGER - 10000,
-            type='foot',
-            regions=[MAX_INTEGER for i in range(MAX_INTEGER)],
-            working_hours=["09:00-18:00" for i in range(MAX_INTEGER)]
-        ),
-        HTTPStatus.CREATED
-    )
-"""
