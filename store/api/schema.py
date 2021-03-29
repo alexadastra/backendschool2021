@@ -186,8 +186,8 @@ class OrdersGetResponseSchema(OrderItemSchema):
 
 class OrdersAssignPostResponseSchema(Schema):
     orders = Nested(SingleIdSchema, many=True, required=True,
-                    validate=Length(max=10000))  # rewrite according to response schema
-    assign_time = Str(required=True)
+                    validate=Length(min=0, max=10000))  # rewrite according to response schema
+    assign_time = Str()
 
 
 class OrdersAssignPostRequestSchema(Schema):

@@ -62,7 +62,7 @@ class OrdersAssignmentView(BaseView):
 
             orders_to_assign_ids = await AvailableOrdersDefiner().get_orders(conn, courier)
             if len(orders_to_assign_ids) == 0:
-                return Response(text='[]', content_type='application/json')
+                return Response(body={'orders': []})
 
             assignment_time = await ISODatetimeFormatConverter.get_now()
             await self.assign_orders(conn, orders_to_assign_ids, courier_id, assignment_time)

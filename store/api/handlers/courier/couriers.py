@@ -132,7 +132,7 @@ class CouriersView(BaseView):
     @classmethod
     async def get_courier_orders_done_sequense_count(cls, conn, courier_id):
         query = COURIERS_ORDERS_SEQUENCES_QUERY.where(
-            and_(orders_table.c.completion_time != None, orders_table.c.courier_id == courier_id)
+            and_(orders_table.c.courier_id == courier_id)
         )
         total_sequences = await conn.fetchval(query)
 
@@ -149,8 +149,13 @@ class CouriersView(BaseView):
             and_(orders_table.c.completion_time != None, orders_table.c.courier_id == courier_id)
         )
         regions_average_delivery_timedelta = await conn.fetch(query)
-        return None if regions_average_delivery_timedelta == [] else \
-            min(*[row['average_timedelta'].total_seconds() for row in regions_average_delivery_timedelta])
+        if regions_average_delivery_timedelta == []:
+            return None
+        else:
+            lst = [row['average_timedelta'].total_seconds() for row in regions_average_delivery_timedelta]
+            if len(lst) == 1:
+                return lst[0]
+            return min(*lst)
 
     @docs(summary='Обновить указанного жителя в определенной выгрузке')
     @request_schema(CourierUpdateRequestSchema())
@@ -235,7 +240,7 @@ class CouriersView(BaseView):
                 rating = await CourierConfigurator.calculate_rating(courier_t)
                 courier["rating"] = rating
             if sequences_count:
-                earnings = await CourierConfigurator.calculate_earnings(sequences_count, courier["type"])
+                earnings = await CourierConfigurator.calculate_earnings(sequences_count, courier["courier_type"])
                 courier["earnings"] = earnings
 
             return Response(body=courier)

@@ -9,10 +9,10 @@ from aiohttp.typedefs import StrOrURL
 from aiohttp.web_urldispatcher import DynamicResource
 
 from store.api.handlers import (
-    OrdersImportsView, OrdersView
+    OrdersImportsView, OrdersView, OrdersAssignmentView, OrdersCompletionView
 )
 from store.api.schema import (
-    OrdersIdsSchema, OrdersGetResponseSchema
+    OrdersIdsSchema, OrdersGetResponseSchema, OrdersAssignPostResponseSchema, OrdersCompletePostResponseSchema
 )
 from store.utils.pg import MAX_INTEGER
 
@@ -124,5 +124,45 @@ async def get_order(
     if response.status == HTTPStatus.OK:
         data = await response.json()
         errors = OrdersGetResponseSchema().validate(data)
+        assert errors == {}
+        return data
+
+
+async def assign_orders(
+        client: TestClient,
+        courier_id: int,
+        expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
+        **request_kwargs
+) -> dict:
+    response = await client.post(
+        OrdersAssignmentView.URL_PATH, json={'courier_id': courier_id}, **request_kwargs,
+    )
+    assert response.status == expected_status
+
+    if response.status == HTTPStatus.OK:
+        data = await response.json()
+        errors = OrdersAssignPostResponseSchema().validate(data)
+        assert errors == {}
+        return data
+
+
+async def complete_orders(
+        client: TestClient,
+        courier_id: int,
+        order_id: int,
+        time: str,
+        expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
+        **request_kwargs
+) -> dict:
+    response = await client.post(
+        OrdersCompletionView.URL_PATH, json={'order_id': order_id,
+                                             'courier_id': courier_id,
+                                             'complete_time': time}, **request_kwargs,
+    )
+    assert response.status == expected_status
+
+    if response.status == HTTPStatus.OK:
+        data = await response.json()
+        errors = OrdersCompletePostResponseSchema().validate(data)
         assert errors == {}
         return data
