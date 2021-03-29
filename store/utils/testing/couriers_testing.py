@@ -128,18 +128,16 @@ async def get_courier(
         return data
 
 
-async def patch_citizen(
+async def patch_courier(
         client: TestClient,
-        import_id: int,
-        citizen_id: int,
+        courier_id: int,
         data: Mapping[str, Any],
         expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
         str_or_url: StrOrURL = CouriersView.URL_PATH,
         **request_kwargs
 ):
     response = await client.patch(
-        url_for(str_or_url, import_id=import_id,
-                citizen_id=citizen_id),
+        url_for(str_or_url, courier_id=courier_id),
         json=data,
         **request_kwargs
     )
@@ -148,4 +146,4 @@ async def patch_citizen(
         data = await response.json()
         errors = CourierItemSchema().validate(data)
         assert errors == {}
-        return data['data']
+        return data

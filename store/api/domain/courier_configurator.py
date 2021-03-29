@@ -10,7 +10,7 @@ class CourierConfigurator:
         elif courier_type == "foot":
             return 10
         else:
-            return 0
+            return -1
 
     @staticmethod
     async def get_courier_earnings_coefficient(courier_type):
@@ -21,7 +21,7 @@ class CourierConfigurator:
         elif courier_type == "foot":
             return 2
         else:
-            return 0
+            return -1
 
     @staticmethod
     async def calculate_earnings(count, courier_type):
