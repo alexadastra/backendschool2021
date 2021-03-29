@@ -1,0 +1,20 @@
+version: "3.4"
+services:
+  postgres:
+    restart: always
+    image: postgres:12
+    environment:
+      POSTGRES_USER: {{ store_pg_user }}
+      POSTGRES_PASSWORD: {{ store_pg_password }}
+      POSTGRES_DB: {{ store_pg_dbname }}
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+
+  store:
+    restart: always
+    image: {{ store_image }}
+    command: store-api
+    ports:
+      - 80:8080
+    environment:
+      STORE_PG_URL: postgresql://{{ store_pg_user }}:{{ store_pg_password }}@postgres/{{ store_pg_dbname }}

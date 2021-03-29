@@ -82,10 +82,12 @@ class OrderItemSchema(Schema):
     order_id = Int(validate=Range(min=0), strict=True, required=True)
     weight = Float(validate=Range(min=0.01, max=50), strict=True, required=True)
     region = Int(validate=Range(min=0), strict=True, required=True)
-    delivery_hours = List(Str(validate=Length(min=0, max=10000)), required=True)
+    delivery_hours = List(Str(validate=Length(min=1, max=10000)), strict=True, required=True)
 
     @validates('delivery_hours')
-    def validate_working_hours(self, value):
+    def validate_delivery_hours(self, value):
+        if len(value) == 0:
+            raise ValidationError("delivery hours must not be empty!")
         TimeIntervalsConverter.validate_hour_intervals(value, "delivery hours")
 
 
@@ -116,6 +118,7 @@ class OrdersIdsSchema(Schema):
 class OrdersGetResponseSchema(OrderItemSchema):
     courier_id = Int()
     assign_time = Str(strict=True)
+    delivery_start_time = Str(strict=True)
     complete_time = Str(strict=True)
 
 

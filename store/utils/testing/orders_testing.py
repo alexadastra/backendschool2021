@@ -46,7 +46,7 @@ def generate_order(
         region = randint(0, 100)
 
     if delivery_hours is None:
-        delivery_hours = []
+        delivery_hours = ["09:00-18:00"]
 
     return {
         'order_id': order_id,

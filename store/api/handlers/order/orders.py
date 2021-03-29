@@ -35,6 +35,7 @@ class OrdersView(BaseView):
             'delivery_hours': TimeIntervalsConverter.int_to_string_array(time_start_intervals=order['time_start'],
                                                                          time_finish_intervals=order['time_finish']),
             'assign_time': "" if not order['assignment_time'] else order['assignment_time'],
+            'delivery_start_time': "" if not order['delivery_start_time'] else order['delivery_start_time'],
             'complete_time': "" if not order['completion_time'] else order['completion_time']
         }
 

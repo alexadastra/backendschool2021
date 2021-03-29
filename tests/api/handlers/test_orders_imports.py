@@ -9,8 +9,7 @@ from store.utils.testing.orders_testing import (
 
 LONGEST_STR = 'ё' * 256
 CASES = (
-    # Житель без родственников.
-    # Обработчик должен корректно создавать выгрузку с одним жителем.
+    # one single order
     (
         [
             generate_order()
@@ -18,9 +17,7 @@ CASES = (
         HTTPStatus.CREATED
     ),
 
-    # Житель с несколькими родственниками.
-    # Обработчик должен корректно добавлять жителей и создавать
-    # родственные связи.
+    # few orders
     (
         [
             generate_order(order_id=1, region=2, delivery_hours=["09:00-18:00"]),
@@ -30,20 +27,13 @@ CASES = (
         HTTPStatus.CREATED
     ),
 
-    # Выгрузка с максимально длинными/большими значениями.
-    # aiohttp должен разрешать запросы такого размера, а обработчик не должен
-    # на них падать.
-
-
-
-    # Пустая выгрузка
-    # Обработчик не должен падать на таких данных.
+    # no orders
     (
         [],
         HTTPStatus.CREATED
     ),
 
-    # Дата рождения некорректная (в будущем)
+    # incorrect id
     (
         [
             generate_order(order_id=-1),
@@ -51,7 +41,7 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
-    # citizen_id не уникален в рамках выгрузки
+    # not unique ids
     (
         [
             generate_order(order_id=1),
@@ -60,14 +50,72 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
+    # invalid field
     (
-        generate_orders(
-            orders_num=10000,
-            start_order_id=MAX_INTEGER - 10000,
-        ),
-        HTTPStatus.CREATED
+        [{
+            "order_id": 1,
+            "weight": 0.23,
+            "region": 12,
+            "delivery_hours": [
+                "09:00-18:00"
+            ],
+            "gdfh": "xgfch"
+        }],
+      HTTPStatus.BAD_REQUEST
     ),
 
+    # missing field
+    (
+        [{
+            "order_id": 1,
+            "weight": 0.23,
+            "delivery_hours": [
+                "09:00-18:00"
+            ],
+        }],
+      HTTPStatus.BAD_REQUEST
+    ),
+
+    # empty delivery hours
+    (
+        [{
+            "order_id": 1,
+            "weight": 0.23,
+            "region": 1,
+            "delivery_hours": [],
+        }],
+      HTTPStatus.BAD_REQUEST
+    ),
+
+    # too heavy order
+    (
+        [{
+            "order_id": 1,
+            "weight": 100,
+            "region": 12,
+            "delivery_hours": [
+                "09:00-18:00"
+            ],
+        }],
+      HTTPStatus.BAD_REQUEST
+    ),
+
+    # too light order
+    (
+        [{
+            "order_id": 1,
+            "weight": 0.0001,
+            "region": 12,
+            "delivery_hours": [
+                "09:00-18:00"
+            ],
+        }],
+      HTTPStatus.BAD_REQUEST
+    ),
+
+
+
+    # standart input
     (
         [
         {
@@ -112,3 +160,14 @@ async def test_orders_import(api_client, orders, expected_status):
             imported_order = await get_order(api_client, order['order_id'])
             imported_order = {k: imported_order[k] for k in imported_order.keys() if k in order.keys()}
             assert compare_orders(order, imported_order)
+
+"""
+# the largest input possible
+    (
+        generate_orders(
+            orders_num=10000,
+            start_order_id=MAX_INTEGER - 10000,
+        ),
+        HTTPStatus.CREATED
+    ),
+"""

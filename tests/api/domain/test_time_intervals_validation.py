@@ -12,6 +12,51 @@ CASES = (
         ["9:00-18:00"],
         ValidationError
     ),
+
+    (
+        ["09:69-18:96"],
+        ValidationError
+    ),
+
+    (
+        ["09:00-18:420"],
+        ValidationError
+    ),
+
+    (
+        ["19:00-08:00"],
+        ValidationError
+    ),
+
+    (
+        ["22:00-00:42"],
+        ValidationError
+    ),
+
+    (
+        ["22:00-00:00"],
+        ValidationError
+    ),
+
+    (
+        ["16:40-16:40"],
+        ValidationError
+    ),
+
+    (
+        ["16:40-16:40", "09:00-18:00"],
+        ValidationError
+    ),
+
+    (
+        ["09:00 - 18:00"],
+        ValidationError
+    ),
+
+    (
+        ["09.00-18.00"],
+        ValidationError
+    ),
 )
 
 

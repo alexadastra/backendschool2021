@@ -28,6 +28,12 @@ class CouriersView(BaseView):
 
     @staticmethod
     async def get_courier(conn, courier_id):
+        """
+        looks up for courier in table by id. If not found returns 404
+        :param conn: sql connection
+        :param courier_id: int id
+        :return: courier entity for output
+        """
         query = COURIERS_QUERY.where(and_(
             couriers_table.c.courier_id == courier_id,
         ))
@@ -44,12 +50,24 @@ class CouriersView(BaseView):
 
     @staticmethod
     async def get_orders(conn, courier_id):
+        """
+        selects incomplete orders assigned to courier with id
+        :param conn: sql connection
+        :param courier_id: int id
+        :return: list of order records
+        """
         query = orders_table.select().where(
             and_(orders_table.c.courier_id == courier_id, orders_table.c.completion_time == None))
         return await conn.fetch(query)
 
     @staticmethod
     async def add_regions(conn, courier_id, region_ids):
+        """
+        add regions to table if they're not there, add relation between courier and regions
+        :param conn: sql connection
+        :param courier_id: int id
+        :param region_ids: {int ids}
+        """
         if not region_ids:
             return
 
@@ -67,6 +85,12 @@ class CouriersView(BaseView):
 
     @staticmethod
     async def remove_regions(conn, courier_id, region_ids):
+        """
+        removes each relation between courier and regions
+        :param conn: sql connection
+        :param courier_id: int id
+        :param region_ids: {int ids}
+        """
         if not region_ids:
             return
 
@@ -82,6 +106,12 @@ class CouriersView(BaseView):
 
     @staticmethod
     async def add_working_hours(conn, courier_id, working_hours):
+        """
+        adds working hours and relations with courier
+        :param conn: sql connection
+        :param courier_id: int id
+        :param working_hours: ['hh:mm-hh:mm']
+        """
         if not working_hours:
             return
         time_start, time_finish = TimeIntervalsConverter.string_to_int_array(working_hours)
@@ -95,6 +125,12 @@ class CouriersView(BaseView):
 
     @staticmethod
     async def remove_working_hours(conn, courier_id, working_hours_ids):
+        """
+        removes working hours and relations with courier
+        :param conn: sql connection
+        :param courier_id: int id
+        :param working_hours: ['hh:mm-hh:mm']
+        """
         if not working_hours_ids:
             return
         conditions = []
@@ -115,6 +151,13 @@ class CouriersView(BaseView):
 
     @classmethod
     async def update_courier_type(cls, conn, courier_id, data):
+        """
+        changes couriers type
+        :param conn: sql connection
+        :param courier_id: int id
+        :param data: courier_type
+        :return:
+        """
         values = {'courier_type': data['courier_type']}
         if values:
             query = couriers_table.update().values(values).where(
@@ -124,13 +167,24 @@ class CouriersView(BaseView):
 
     @classmethod
     async def remove_orders(cls, conn, order_ids):
-        values = {'courier_id': None, 'assignment_time': None}
+        """
+        removes orders that courier can't deliver (mark as not having courier)
+        :param conn: sql connection
+        :param order_ids: [int ids]
+        """
+        values = {'courier_id': None, 'assignment_time': None, 'deliver_start_time': None}
         conditions = or_(*list([orders_table.c.order_id == order_id for order_id in order_ids]))
         query = orders_table.update().values(values).where(conditions)
         await conn.execute(query)
 
     @classmethod
     async def get_courier_orders_done_sequense_count(cls, conn, courier_id):
+        """
+        counts done order sequences
+        :param conn: sql connection
+        :param courier_id: int
+        :return: int
+        """
         query = COURIERS_ORDERS_SEQUENCES_QUERY.where(
             and_(orders_table.c.courier_id == courier_id)
         )
@@ -145,6 +199,12 @@ class CouriersView(BaseView):
 
     @classmethod
     async def get_courier_t(cls, conn, courier_id):
+        """
+        Counts minimum of average felivery time
+        :param conn:
+        :param courier_id:
+        :return:
+        """
         query = COURIERS_ORDERS_REGIONS_QUERY.where(
             and_(orders_table.c.completion_time != None, orders_table.c.courier_id == courier_id)
         )
@@ -166,12 +226,12 @@ class CouriersView(BaseView):
         # также для получения транзакционной advisory-блокировки.
         async with self.pg.transaction() as conn:
 
-            # Блокировка позволит избежать состояние гонки между конкурентными запросами
+
             await self.acquire_lock(conn, self.courier_id)
-            # Получаем информацию о жителе
+
             courier = await self.get_courier(conn, self.courier_id)
             couriers_orders = await self.get_orders(conn, self.courier_id)
-            # Обновляем таблицу couriers
+
             if 'courier_type' in self.request['data']:
                 await self.update_courier_type(conn, self.courier_id, self.request['data'])
 
@@ -228,9 +288,11 @@ class CouriersView(BaseView):
     # @request_schema()
     @response_schema(CourierGetResponseSchema(), code=HTTPStatus.OK.value)
     async def get(self):
-        # Транзакция требуется чтобы в случае ошибки (или отключения клиента,
-        # не дождавшегося ответа) откатить частично добавленные изменения.
+
         async with self.pg.transaction() as conn:
+
+            await self.acquire_lock(conn, self.courier_id)
+
             courier = await self.get_courier(conn, self.courier_id)
 
             courier_t = await self.get_courier_t(conn, self.courier_id)

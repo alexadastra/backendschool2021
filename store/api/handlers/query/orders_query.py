@@ -14,6 +14,10 @@ ORDERS_QUERY = select(
             None
         ).label('assignment_time'),
         func.array_remove(
+            func.array_agg(orders_table.c.delivery_start_time),
+            None
+        ).label('delivery_start_time'),
+        func.array_remove(
             func.array_agg(orders_table.c.completion_time),
             None
         ).label('completion_time'),

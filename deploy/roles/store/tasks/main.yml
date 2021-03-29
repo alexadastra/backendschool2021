@@ -1,0 +1,51 @@
+- name: create directory for store app
+  file:
+    path: /etc/docker/compose/store
+    state: directory
+    mode: 0770
+    owner: root
+    group: docker
+
+- name: deploy docker-compose.yml for store app
+  template:
+    src: docker-compose.yml
+    dest: /etc/docker/compose/store/docker-compose.yml
+    mode: 0640
+    owner: root
+    group: docker
+  notify:
+    - restart store
+
+- name: start & enable store service
+  service:
+    name: docker-compose@store
+    # Сервис должен запускаться после перезагрузки
+    enabled: yes
+    # Сервис должен запуститься или быть уже запущен
+    state: started
+
+# Требуется для модуля docker_container
+# https://docs.ansible.com/ansible/latest/modules/docker_container_module.html#requirements
+- name: install python modules
+  apt:
+    name:
+      - python3-docker
+    update_cache: yes
+
+# Требуется чтобы все обработчики (handlers) отработали немедленно,
+# не дожидаясь обычных точек синхронизации
+# https://docs.ansible.com/ansible/latest/modules/meta_module.html#parameters
+- name: flush handlers
+  meta: flush_handlers
+
+- name: apply database migrations
+  docker_container:
+    name: db_migrator
+    image: "{{ store_image }}"
+    command: ["store-db", "upgrade", "head"]
+    networks:
+      - name: store_default
+    auto_remove: yes
+    networks_cli_compatible: yes
+    env:
+      STORE_PG_URL: postgresql://{{ store_pg_user }}:{{ store_pg_password }}@postgres/{{ store_pg_dbname }}

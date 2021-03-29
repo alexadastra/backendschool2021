@@ -31,9 +31,6 @@ class CouriersImportsView(BaseView):
 
     @classmethod
     def make_couriers_table_rows(cls, couriers) -> Generator:
-        """
-        Generates data for 'couriers' table insertion
-        """
         for courier in couriers:
             yield {
                 'courier_id': courier['courier_id'],
@@ -42,9 +39,6 @@ class CouriersImportsView(BaseView):
 
     @classmethod
     def make_regions_table_rows(cls, couriers, regions) -> Generator:
-        """
-        Generates data for 'regions' table insertion
-        """
         current_regions, new_regions = set(), set()
         for i in regions:
             current_regions.add(i['region_id'])
@@ -60,9 +54,6 @@ class CouriersImportsView(BaseView):
 
     @classmethod
     def make_couriers_regions_table_rows(cls, couriers) -> Generator:
-        """
-        Generates data for 'couriers_regions' table insertion
-        """
         for courier in couriers:
             for region in courier['regions']:
                 yield {

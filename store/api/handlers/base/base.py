@@ -3,6 +3,9 @@ from asyncpgsa import PG
 
 
 class BaseView(View):
+    """
+    base entity for all handlers
+    """
     URL_PATH: str
 
     @property

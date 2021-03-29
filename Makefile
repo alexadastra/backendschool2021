@@ -1,6 +1,6 @@
-PROJECT_NAME ?= backendschool2019
+PROJECT_NAME ?= backendschool2021
 VERSION = $(shell python3 setup.py --version | tr '+' '-')
-PROJECT_NAMESPACE ?= alvassin
+PROJECT_NAMESPACE ?= semenchenkoaleksey
 REGISTRY_IMAGE ?= $(PROJECT_NAMESPACE)/$(PROJECT_NAME)
 
 all:

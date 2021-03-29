@@ -9,7 +9,7 @@ from yarl import URL
 from store.utils.pg import DEFAULT_PG_URL, make_alembic_config
 
 
-PG_URL = os.getenv('CI_ANALYZER_PG_URL', DEFAULT_PG_URL)
+PG_URL = os.getenv('CI_STORE_PG_URL', DEFAULT_PG_URL)
 
 
 @pytest.fixture

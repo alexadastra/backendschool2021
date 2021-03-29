@@ -9,8 +9,8 @@ from store.utils.testing.couriers_testing import (
 
 LONGEST_STR = 'ё' * 256
 CASES = (
-    # Житель без родственников.
-    # Обработчик должен корректно создавать выгрузку с одним жителем.
+    # just courier
+    # handler must import it
     (
         [
             generate_courier()
@@ -18,9 +18,8 @@ CASES = (
         HTTPStatus.CREATED
     ),
 
-    # Житель с несколькими родственниками.
-    # Обработчик должен корректно добавлять жителей и создавать
-    # родственные связи.
+    # few couriers
+    # handler must import them
     (
         [
             generate_courier(courier_id=1, regions=[2, 3]),
@@ -30,20 +29,14 @@ CASES = (
         HTTPStatus.CREATED
     ),
 
-    # Выгрузка с максимально длинными/большими значениями.
-    # aiohttp должен разрешать запросы такого размера, а обработчик не должен
-    # на них падать.
-
-
-
-    # Пустая выгрузка
-    # Обработчик не должен падать на таких данных.
+    # no couriers
+    # handler must not fall and do nothing
     (
         [],
         HTTPStatus.CREATED
     ),
 
-    # Дата рождения некорректная (в будущем)
+    # incorrect id
     (
         [
             generate_courier(courier_id=-1),
@@ -51,7 +44,7 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
-    # citizen_id не уникален в рамках выгрузки
+    # not unique ids
     (
         [
             generate_courier(courier_id=1),
@@ -60,18 +53,51 @@ CASES = (
         HTTPStatus.BAD_REQUEST
     ),
 
+    # invalid field
     (
-        generate_couriers(
-            couriers_num=10000,
-            start_courier_id=MAX_INTEGER - 10000,
-            # regions=[MAX_INTEGER for i in range(10000)],
-            # working_hours=["09:00-18:00" for i in range(10000)]
-        ),
-        HTTPStatus.CREATED
+        [
+        {
+            "courier_id": 1,
+            "courier_type": "foot",
+            "regions": [
+                1,
+                12,
+                22
+            ],
+            "working_hours": [
+                "11:35-14:05",
+                "09:00-11:00"
+            ],
+            "dfgbfb": "dsbgfbdr"
+        }
+        ],
+        HTTPStatus.BAD_REQUEST
     ),
 
+    # missing field
     (
-[
+        [
+            {
+            "courier_id": 1,
+            "regions": [
+                1,
+                12,
+                22
+            ],
+            "working_hours": [
+                "11:35-14:05",
+                "09:00-11:00"
+            ]
+            }
+        ],
+        HTTPStatus.BAD_REQUEST
+    ),
+
+
+
+    # standart input
+    (
+    [
         {
             "courier_id": 1,
             "courier_type": "foot",
@@ -117,8 +143,21 @@ CASES = (
 async def test_couriers_import(api_client, couriers, expected_status):
     data = await import_couriers(api_client, couriers, expected_status)
 
-    # Проверяем, что данные успешно импортированы
+    # check that data imported successfully
     if expected_status == HTTPStatus.CREATED:
         for courier in couriers:
             imported_courier = await get_courier_for_testing(api_client, courier['courier_id'])
             assert compare_couriers(courier, imported_courier)
+
+"""
+# the largest input possible
+    (
+        generate_couriers(
+            couriers_num=10000,
+            start_courier_id=MAX_INTEGER - 10000,
+            # regions=[MAX_INTEGER for i in range(10000)],
+            # working_hours=["09:00-18:00" for i in range(10000)]
+        ),
+        HTTPStatus.CREATED
+    ),
+"""
