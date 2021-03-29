@@ -31,8 +31,8 @@
 
 .. code-block:: shell
 
-    docker run semenchenkoaleksey/backendschool2021 analyzer-db --help
-    docker run semenchenkoaleksey/backendschool2021 analyzer-api --help
+    docker run semenchenkoaleksey/backendschool2021 store-db --help
+    docker run semenchenkoaleksey/backendschool2021 store-api --help
 
 Опции для запуска можно указывать как аргументами командной строки, так и
 переменными окружения с префиксом :shell:`STORE` (например: вместо аргумента
@@ -72,7 +72,7 @@ deploy/hosts.ini (с установленной Ubuntu) и выполните к
     store-api
 
 После запуска команд приложение начнет слушать запросы на 0.0.0.0:8081.
-Для отладки в PyCharm необходимо запустить :shell:`env/bin/analyzer-api`.
+Для отладки в PyCharm необходимо запустить :shell:`env/bin/store-api`.
 
 Как запустить тесты локально?
 -----------------------------
