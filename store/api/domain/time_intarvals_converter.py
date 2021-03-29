@@ -5,17 +5,33 @@ import re
 class TimeIntervalsConverter:
     @staticmethod
     def int_to_string(time):
+        """
+        :param time: number of minutes
+        :return: hh:mm
+        """
         hours = str(int(time / 60)) if time / 60 > 9 else "0" + str(int(time / 60))
         minutes = str(time % 60) if time % 60 > 9 else "0" + str(time % 60)
         return hours + ":" + minutes
 
     @staticmethod
     def int_to_string_interval(time_start, time_finish):
+        """
+        Converts time interval of ints to string
+        :param time_start: number of minutes
+        :param time_finish: number of minutes
+        :return: hh:mm-hh:mm
+        """
         return TimeIntervalsConverter.int_to_string(time_start) + "-" + \
                TimeIntervalsConverter.int_to_string(time_finish)
 
     @staticmethod
     def int_to_string_array(time_start_intervals, time_finish_intervals):
+        """
+        Converts time intervals of ints to string list
+        :param time_start_intervals: list of number of minutes
+        :param time_finish_intervals: list of number of minutes
+        :return: ['hh:mm-hh:mm', 'hh:mm-hh:mm', ...]
+        """
         if len(time_start_intervals) == 0:
             return []
         if len(time_start_intervals) == 1:
@@ -24,24 +40,36 @@ class TimeIntervalsConverter:
         time_start_intervals_unique = list(dict.fromkeys(time_start_intervals))
         time_finish_intervals_unique = list(dict.fromkeys(time_finish_intervals))
         for i in range(len(time_start_intervals_unique)):
-            time_intervals\
+            time_intervals \
                 .append(TimeIntervalsConverter
                         .int_to_string_interval(time_start_intervals_unique[i], time_finish_intervals_unique[i]))
         return time_intervals
 
     @staticmethod
     def string_to_int(time):
+        """
+        :param time: hh:mm string
+        :return: number of minutes
+        """
         spl = time.split(":")
-        hours, minutes = int(spl[0]) , int(spl[1])
+        hours, minutes = int(spl[0]), int(spl[1])
         return hours * 60 + minutes
 
     @staticmethod
     def string_to_int_interval(time_interval):
+        """
+        :param time_interval: hh:mm-hh:mm string
+        :return: time_start int, time_finish int
+        """
         spl = time_interval.split("-")
         return TimeIntervalsConverter.string_to_int(spl[0]), TimeIntervalsConverter.string_to_int(spl[1])
 
     @staticmethod
     def string_to_int_array(time_intervals):
+        """
+        :param time_intervals: ['hh:mm-hh:mm', 'hh:mm-hh:mm', ...]
+        :return: time_start_intervals: list of number of minutes, time_finish_intervals: list of number of minutes
+        """
         time_start_intervals = []
         time_finish_intervals = []
         for time_interval in time_intervals:
@@ -52,6 +80,13 @@ class TimeIntervalsConverter:
 
     @staticmethod
     def validate_time_mark(time_mark, value_title, i):
+        """
+        Validate hh:mm string
+        :param time_mark:
+        :param value_title:
+        :param i:
+        :return:
+        """
         hours, minutes = int(time_mark.split(":")[0]), int(time_mark.split(":")[0])
         if hours > 23:
             raise ValidationError(
@@ -65,6 +100,12 @@ class TimeIntervalsConverter:
 
     @staticmethod
     def validate_hour_intervals_list(hour_intervals_list, value_title):
+        """
+        validates ['hh:mm-hh:mm', 'hh:mm-hh:mm', ...]
+        :param hour_intervals_list:
+        :param value_title:
+        :return:
+        """
         for i in range(len(hour_intervals_list)):
             hour_interval = hour_intervals_list[i]
             time_start, time_finish = hour_interval.split("-")
@@ -84,6 +125,12 @@ class TimeIntervalsConverter:
 
     @staticmethod
     def validate_hour_intervals_with_regular_expressions(hour_intervals_list, value_title):
+        """
+        validates hh:mm string as regular expression
+        :param hour_intervals_list:
+        :param value_title:
+        :return:
+        """
         pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
         for i in range(len(hour_intervals_list)):
             hour_interval = hour_intervals_list[i]

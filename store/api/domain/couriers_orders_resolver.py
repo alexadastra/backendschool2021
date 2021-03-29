@@ -17,6 +17,10 @@ class CouriersOrdersResolver:
         self.ans = []
 
     async def resolve_orders(self):
+        """
+        main method for resolver
+        :return: items ids
+        """
         await self.solve_knapsack_problem()
         await self.find_ans(self.n, self.w)
         ids_ = []
@@ -26,7 +30,10 @@ class CouriersOrdersResolver:
         return ids_
 
     async def solve_knapsack_problem(self):
-        # Build table k[][] in bottom up manner
+        """
+        Build table k[][] in bottom up manner
+        :return: last value in table, which is the biggest sum of p
+        """
         for i in range(self.n + 1):
             for w in range(self.w + 1):
                 if i == 0 or w == 0:
@@ -39,6 +46,12 @@ class CouriersOrdersResolver:
         return self.k[self.n][self.w]
 
     async def find_ans(self, k, s):
+        """
+        forms list ans of items that for the biggest sum of p
+        :param k:
+        :param s:
+        :return:
+        """
         if self.k[k][s] == 0:
             return
         if self.k[k - 1][s] == self.k[k][s]:
