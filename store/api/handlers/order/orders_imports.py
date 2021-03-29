@@ -15,6 +15,8 @@ from store.utils.pg import MAX_QUERY_ARGS
 class OrdersImportsView(BaseView):
     URL_PATH = '/orders'
     MAX_ORDERS_PER_INSERT = MAX_QUERY_ARGS // len(orders_table.columns)
+    MAX_DELIVERY_HOURS_PER_INSERT = MAX_QUERY_ARGS // len(delivery_hours_table.columns)
+    MAX_COURIERS_DELIVERY_HOURS_PER_INSERT = MAX_QUERY_ARGS // len(orders_delivery_hours_table.columns)
 
     @classmethod
     def make_orders_table_rows(cls, orders) -> Generator:
@@ -89,5 +91,5 @@ class OrdersImportsView(BaseView):
             for chunk in chunked_orders_delivery_hours_table_rows:
                 await conn.execute(query.values(list(chunk)))
 
-        return Response(body={'orders': list(*chunk_list(orders_ids, self.MAX_ORDERS_PER_INSERT))},
-                        status=HTTPStatus.CREATED)
+            return Response(body={'orders': list(orders_ids)},
+                            status=HTTPStatus.CREATED)

@@ -128,6 +128,17 @@ async def get_courier(
         return data
 
 
+async def get_courier_for_testing(
+        client: TestClient,
+        courier_id: int,
+        expected_status: Union[int, EnumMeta] = HTTPStatus.OK,
+        **request_kwargs
+) -> dict:
+    courier = await get_courier(client, courier_id, expected_status, **request_kwargs)
+    return {'courier_id': courier['courier_id'], 'courier_type': courier['courier_type'],
+            'regions': courier['regions'], 'working_hours': courier['working_hours']}
+
+
 async def patch_courier(
         client: TestClient,
         courier_id: int,

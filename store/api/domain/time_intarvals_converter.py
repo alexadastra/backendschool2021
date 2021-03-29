@@ -1,3 +1,5 @@
+from marshmallow import ValidationError
+import re
 
 
 class TimeIntervalsConverter:
@@ -47,3 +49,50 @@ class TimeIntervalsConverter:
             time_start_intervals.append(time_start)
             time_finish_intervals.append(time_finish)
         return time_start_intervals, time_finish_intervals
+
+    @staticmethod
+    def validate_time_mark(time_mark, value_title, i):
+        hours, minutes = int(time_mark.split(":")[0]), int(time_mark.split(":")[0])
+        if hours > 23:
+            raise ValidationError(
+                'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, hours)
+            )
+        if minutes > 59:
+            raise ValidationError(
+                'incorrect value for {} on index {}. {} is out of range'.format(value_title, i, minutes)
+            )
+        return hours, minutes
+
+    @staticmethod
+    def validate_hour_intervals_list(hour_intervals_list, value_title):
+        for i in range(len(hour_intervals_list)):
+            hour_interval = hour_intervals_list[i]
+            time_start, time_finish = hour_interval.split("-")
+            # check if time interval isn't empty
+            if time_start == time_finish:
+                raise ValidationError(
+                    'time interval {} is empty'.format(hour_interval)
+                )
+            # check if time mark is correct (hours are in [0..23], minutes are in [0..59])
+            hours_start, minutes_start = TimeIntervalsConverter.validate_time_mark(time_start, value_title, i)
+            hours_finish, minutes_finish = TimeIntervalsConverter.validate_time_mark(time_finish, value_title, i)
+            # should we check "23:00"-"2:00" or "23:00"-"0:00"? yes indeed
+            if hours_start * 60 + minutes_start > hours_finish * 60 + minutes_finish:
+                raise ValidationError(
+                    'time_start ({}) is greater than time_finish ({}).'.format(time_start, time_finish)
+                )
+
+    @staticmethod
+    def validate_hour_intervals_with_regular_expressions(hour_intervals_list, value_title):
+        pattern = re.compile('^\d\d:\d\d-\d\d:\d\d$')
+        for i in range(len(hour_intervals_list)):
+            hour_interval = hour_intervals_list[i]
+            if not pattern.match(hour_interval):
+                raise ValidationError(
+                    'incorrect format for {} on index {}.'.format(value_title, i)
+                )
+
+    @staticmethod
+    def validate_hour_intervals(hour_intervals_list, value_title):
+        TimeIntervalsConverter.validate_hour_intervals_with_regular_expressions(hour_intervals_list, value_title)
+        TimeIntervalsConverter.validate_hour_intervals_list(hour_intervals_list, value_title)

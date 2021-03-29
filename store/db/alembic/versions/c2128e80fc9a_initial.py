@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 177a08d2e492
+Revision ID: c2128e80fc9a
 Revises: 
-Create Date: 2021-03-28 15:08:10.673750
+Create Date: 2021-03-29 15:44:20.190811
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '177a08d2e492'
+revision = 'c2128e80fc9a'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -59,6 +59,7 @@ def upgrade():
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('region', sa.Integer(), nullable=False),
     sa.Column('assignment_time', sa.DateTime(), nullable=True),
+    sa.Column('delivery_start_time', sa.DateTime(), nullable=True),
     sa.Column('completion_time', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['courier_id'], ['couriers.courier_id'], name=op.f('fk__orders__courier_id__couriers')),
     sa.PrimaryKeyConstraint('order_id', name=op.f('pk__orders'))
@@ -82,5 +83,6 @@ def downgrade():
     op.drop_table('regions')
     op.drop_table('delivery_hours')
     op.drop_table('couriers')
+
     CourierType.drop(op.get_bind())
     # ### end Alembic commands ###

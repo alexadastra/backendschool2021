@@ -60,16 +60,16 @@ def generate_orders(
         orders_num: int,
         unique_regions: int = 10,
         unique_delivery_hours: int = 10,
-        start_orders_id: int = 0,
-        **orders_kwargs
+        start_order_id: int = 0,
+        **order_kwargs
 ) -> List[Dict[str, Any]]:
     # regions = [randrange(1, unique_regions) for _ in range(unique_regions)]
 
-    max_orders_id = start_orders_id + orders_num - 1
+    max_order_id = start_order_id + orders_num - 1
     orders = {}
-    for orders_id in range(start_orders_id, max_orders_id + 1):
+    for order_id in range(start_order_id, max_order_id + 1):
         # citizen_kwargs['town'] = orders_kwargs.get('town', choice(towns))
-        orders[orders_id] = generate_orders(orders_id=orders_id, **orders_kwargs)
+        orders[order_id] = generate_order(order_id=order_id, **order_kwargs)
 
     return list(orders.values())
 

@@ -24,6 +24,10 @@ class CouriersImportsView(BaseView):
     # Максимальное кол-во строк для вставки можно рассчитать как отношение
     # MAX_QUERY_ARGS к кол-ву вставляемых в таблицу столбцов.
     MAX_COURIERS_PER_INSERT = MAX_QUERY_ARGS // len(couriers_table.columns)
+    MAX_REGIONS_PER_INSERT = MAX_QUERY_ARGS // len(regions_table.columns)
+    MAX_COURIER_REGIONS_PER_INSERT = MAX_QUERY_ARGS // len(couriers_regions_table.columns)
+    MAX_WORKING_HOURS_PER_INSERT = MAX_QUERY_ARGS // len(working_hours_table.columns)
+    MAX_COURIERS_WORKING_HOURS_PER_INSERT = MAX_QUERY_ARGS // len(couriers_working_hours_table.columns)
 
     @classmethod
     def make_couriers_table_rows(cls, couriers) -> Generator:
@@ -121,9 +125,9 @@ class CouriersImportsView(BaseView):
             # Он будет получать из генератора make_citizens_table_rows только
             # необходимый для 1 запроса объем данных.
             chunked_couriers_rows = chunk_list(couriers_rows, self.MAX_COURIERS_PER_INSERT)
-            chunked_regions_rows = chunk_list(regions_rows, 1)
-            chunked_couriers_regions_rows = chunk_list(couriers_regions_rows, self.MAX_COURIERS_PER_INSERT)
-            chunked_working_hours_rows = chunk_list(working_hours_rows, self.MAX_COURIERS_PER_INSERT)
+            chunked_regions_rows = chunk_list(regions_rows, self.MAX_REGIONS_PER_INSERT)
+            chunked_couriers_regions_rows = chunk_list(couriers_regions_rows, self.MAX_COURIER_REGIONS_PER_INSERT)
+            chunked_working_hours_rows = chunk_list(working_hours_rows, self.MAX_WORKING_HOURS_PER_INSERT)
 
             query = couriers_table.insert()
             for chunk in chunked_couriers_rows:
@@ -151,11 +155,11 @@ class CouriersImportsView(BaseView):
 
             couriers_working_hours_table_rows = self.make_couriers_working_hours_table_rows(couriers, ids)
             chunked_couriers_working_hours_table_rows = chunk_list(couriers_working_hours_table_rows,
-                                                                   self.MAX_COURIERS_PER_INSERT)
+                                                                   self.MAX_COURIERS_WORKING_HOURS_PER_INSERT)
 
             query = couriers_working_hours_table.insert()
             for chunk in chunked_couriers_working_hours_table_rows:
                 await conn.execute(query.values(list(chunk)))
 
-        return Response(body={'couriers': list(*chunk_list(couriers_ids, self.MAX_COURIERS_PER_INSERT))},
-                        status=HTTPStatus.CREATED)
+            return Response(body={'couriers': list(couriers_ids)},
+                            status=HTTPStatus.CREATED)
